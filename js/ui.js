@@ -195,7 +195,8 @@ function openMenu(tab) {
         : '<p class="empty">まだ誰とも話していない。</p>';
     } else if (UI.tab === 'quest') {
       const s = mainStep();
-      body += `<h3>第一章「灯火の魔法使い」</h3><div class="row"><div class="nm">${esc(s.title)}<small>${esc(s.obj)}</small></div></div>`;
+      body += `<h3>${esc(s.ch)}</h3><div class="row"><div class="nm">${esc(s.title)}<small>${esc(objectiveText())}</small></div></div>`;
+      body += `<p class="stat">討ち取った帝国兵 ${fmt(STATE.kills || 0)}人 ／ 破壊した帝国の建物 ${fmt(STATE.structKills || 0)} ／ 救い出した人 ${(STATE.rescued || []).length}人<br>倒した十将 ${STATE.generals.filter(g => /^g\d/.test(g)).length} / 10</p>`;
       body += MAIN.slice(0, STATE.main).map(m => `<div class="row done"><div class="nm">✓ ${esc(m.title)}</div></div>`).reverse().join('');
       const sides = NPCS.filter(n => n.side && STATE.side[n.side.id]);
       if (sides.length) body += '<h3>依頼</h3>' + sides.map(n => {
@@ -211,7 +212,7 @@ function openMenu(tab) {
         <div class="row"><div class="nm">効果音の音量<small>${volName(SOUND.settings.sfxVol)}</small></div><button data-act="sfxvol">変更</button></div>
         <div class="row"><div class="nm">最初からやり直す<small>記録を消去します</small></div><button data-act="reset">消去</button></div>
         <p class="help">${IS_TOUCH ? '左側をなぞって移動、右側をなぞって視点。詠唱ボタンを長押しで魔力を込め、離して放つ。' :
-        'WASD 移動 / Shift 走る / Space ジャンプ / 左クリック長押し・F 詠唱 / 右ドラッグ 視点 / 1・2・3 属性 / Q オートフォーカス / Tab 狙いの切替 / E 話す・調べる / M 地図 / I 持ち物 / J 目的の表示・非表示'}</p>`;
+        'WASD 移動 / Shift 走る / Space ジャンプ / 左クリック長押し・F 詠唱 / 右ドラッグ 視点 / 1〜8 属性（炎・水・氷・雷・重力・樹木・光・闇） / Q オートフォーカス / Tab 狙いの切替 / E 話す・調べる / M 地図 / I 持ち物 / J 目的の表示・非表示'}</p>`;
     }
     panelHTML('メニュー', body, `所持金 <b>${fmt(STATE.gold)} G</b>　プレイ時間 ${Math.floor(STATE.playTime / 60)}分`);
   });
@@ -427,9 +428,12 @@ function updateHUD(dt) {
     UI.questTitle = s.title;
   }
   $('qtitle').textContent = s.title;
-  let obj = s.obj;
-  if (s.kill && s.n) obj += `（${STATE.mainKills} / ${s.n}）`;
-  $('qobj').textContent = obj;
+  UI.objT = (UI.objT || 0) - dt;
+  if (UI.objT <= 0) {
+    UI.objT = 0.25;
+    $('qobj').textContent = objectiveText();
+    $('killcount').textContent = STATE.kills ? `撃破 ${fmt(STATE.kills)}人` : '';
+  }
   const m = questMarker();
   $('qdist').textContent = m ? `目的地まで ${fmt(Math.hypot(m.x - player.pos.x, m.z - player.pos.z))} m` : '';
   UI.minimapT -= dt;

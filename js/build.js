@@ -51,6 +51,7 @@ function house(B, o) {
   const y = o.y !== undefined ? o.y : groundAt(x, z);
   const L = (lx, ly, lz, bw, bh, bd, c) => { const [ox, oz] = rotXZ(lx, lz, ry); B.box(x + ox, y + ly, z + oz, bw, bh, bd, c, ry); };
   B.box(x, y - 0.5, z, w + 0.4, 1.6, d + 0.4, o.base || 0x6f665a, ry);
+  if (o.burned) return burnedHouse(B, o, x, z, y, ry, w, d, h, L);
   L(0, h / 2 + 0.3, 0, w, h, d, o.wall || 0xe8dcc3);
   if (o.timber) {
     const t = o.timber;
@@ -83,6 +84,44 @@ function house(B, o) {
   if (o.sign) {
     const [sx, sz] = rotXZ(0, d / 2 + 0.5, ry);
     signAt(o.sign, x + sx, y + Math.min(h + 0.4, 3.6), z + sz, 0.8);
+  }
+  if (o.id) BLD[o.id] = info;
+  return info;
+}
+
+// 焼け落ちた家（屋根が崩れ、壁は煤で黒く、窓から炎が吹く）
+function burnedHouse(B, o, x, z, y, ry, w, d, h, L) {
+  const R = mulberry32(hashStr(o.id || (x.toFixed(1) + z.toFixed(1))));
+  const char = [0x2e2824, 0x3a322c, 0x46403a][Math.floor(R() * 3)];
+  const hh = h * (0.55 + R() * 0.45);
+  // 壁（ところどころ欠けた4面）
+  const t = 0.35;
+  L(0, hh / 2 + 0.3, d / 2 - t / 2, w, hh, t, char);
+  L(0, hh * 0.35 + 0.3, -d / 2 + t / 2, w, hh * 0.7, t, char);
+  L(w / 2 - t / 2, hh * 0.45 + 0.3, 0, t, hh * 0.9, d, char);
+  L(-w / 2 + t / 2, hh / 2 + 0.3, 0, t, hh, d, char);
+  // 焦げた梁と崩れた屋根
+  for (let k = 0; k < 3; k++) {
+    const [ox, oz] = rotXZ((R() - 0.5) * w * 0.6, (R() - 0.5) * d * 0.6, ry);
+    B.box(x + ox, y + hh * (0.4 + R() * 0.5), z + oz, 0.25, 0.25, w * 0.9, 0x1e1a18, ry + R() * 0.6, R() * 0.9, R() * 0.5);
+  }
+  if (R() < 0.5) B.prism(x, y + hh * 0.5, z, w * 0.9, h * 0.3, d * 0.7, 0x2a2420, ry + 0.3);
+  // 瓦礫
+  for (let k = 0; k < 5; k++) {
+    const [ox, oz] = rotXZ((R() - 0.5) * (w + 3), d / 2 + 0.6 + R() * 2, ry);
+    B.dodeca(x + ox, y + 0.25, z + oz, 0.3 + R() * 0.5, R() < 0.5 ? 0x5a524a : 0x3a2e26, 1, 0.6, 1, R(), R(), R());
+  }
+  // 焼けた窓の穴・扉
+  L(0, 1.45, d / 2 + 0.06, 1.3, 2.3, 0.12, 0x0c0a08);
+  for (const sx of [-0.3, 0.3]) L(w * sx, hh * 0.6 + 0.3, d / 2 + 0.05, 0.9, 1.0, 0.1, 0x0c0a08);
+  addBoxCollider(x, z, w / 2 + 0.1, d / 2 + 0.1, ry);
+  const [dx, dz] = rotXZ(0, d / 2 + 1.9, ry);
+  const info = { x, z, ry, y, w, d, h: hh, door: { x: x + dx, z: z + dz }, burned: true, firePts: [] };
+  // 炎の出どころ（窓・屋根の穴）
+  const nf = 1 + Math.floor(R() * 3);
+  for (let k = 0; k < nf; k++) {
+    const [ox, oz] = rotXZ((R() - 0.5) * w * 0.7, (R() - 0.5) * d * 0.7, ry);
+    info.firePts.push({ x: x + ox, y: y + hh * (0.5 + R() * 0.6), z: z + oz, s: 0.8 + R() * 1.4 });
   }
   if (o.id) BLD[o.id] = info;
   return info;
@@ -388,82 +427,6 @@ function buildKazami() {
   finishPlace(B, G);
 }
 
-function buildAldia() {
-  const pl = PLACE.aldia, B = new Builder(), G = new Builder();
-  const y = pl.fh;
-  const X = pl.x, Z = pl.z, E = 140;
-  const wallC = 0xcfc6b2, roofB = 0x3b5c9a;
-  // 城壁（東・西・南に門）
-  const gw = 8;
-  wallLine(B, X - E, Z - E, X + E, Z - E, 10, 3, wallC, y);
-  wallLine(B, X + E, Z - E, X + E, Z - gw, 10, 3, wallC, y);
-  wallLine(B, X + E, Z + gw, X + E, Z + E, 10, 3, wallC, y);
-  wallLine(B, X - E, Z - E, X - E, Z - gw, 10, 3, wallC, y);
-  wallLine(B, X - E, Z + gw, X - E, Z + E, 10, 3, wallC, y);
-  wallLine(B, X - E, Z + E, X - gw, Z + E, 10, 3, wallC, y);
-  wallLine(B, X + gw, Z + E, X + E, Z + E, 10, 3, wallC, y);
-  for (const [cx, cz] of [[-E, -E], [E, -E], [-E, E], [E, E]]) tower(B, X + cx, Z + cz, 5, 15, wallC, roofB, y);
-  for (const [cx, cz] of [[E, -gw - 2], [E, gw + 2], [-E, -gw - 2], [-E, gw + 2], [-gw - 2, E], [gw + 2, E]]) tower(B, X + cx, Z + cz, 3.2, 13, wallC, roofB, y);
-  for (const [cx, cz, ry] of [[E, 0, 0], [-E, 0, 0], [0, E, Math.PI / 2]]) B.box(X + cx, y + 11, Z + cz, 3.4, 2.2, gw * 2 + 4, wallC, ry);
-  // 城
-  const kz = Z - 96;
-  B.box(X, y + 1, kz, 70, 2, 40, 0xb8b0a0);
-  addPlatform(X, kz, 35, 20, 0, y + 2);
-  for (let k = 0; k < 4; k++) {
-    const sz = kz + 20.5 + (3 - k) * 0.9;
-    B.box(X, y + 0.25 + k * 0.5, sz, 16, 0.5, 1.0, 0xb8b0a0);
-    addPlatform(X, sz, 8, 0.5, 0, y + 0.5 + k * 0.5);
-  }
-  B.box(X, y + 12, kz - 8, 44, 20, 20, 0xe2dccd);
-  addBoxCollider(X, kz - 8, 22, 10);
-  addBoxCollider(X - 29, kz, 6, 20); addBoxCollider(X + 29, kz, 6, 20);
-  B.prism(X, y + 22, kz - 8, 46, 8, 22, roofB, Math.PI / 2);
-  tower(B, X - 24, kz - 18, 6, 30, 0xe2dccd, roofB, y + 2);
-  tower(B, X + 24, kz - 18, 6, 30, 0xe2dccd, roofB, y + 2);
-  tower(B, X, kz - 14, 7, 38, 0xe2dccd, roofB, y + 2);
-  tower(B, X - 30, kz + 12, 4, 20, 0xe2dccd, roofB, y + 2);
-  tower(B, X + 30, kz + 12, 4, 20, 0xe2dccd, roofB, y + 2);
-  // 謁見の間（柱と屋根だけの開けた広間）
-  const ty = y + 2;
-  for (const sx of [-10, -5, 5, 10]) for (const sz of [-6, 6]) pillar(B, X + sx, kz + 5 + sz, 7, false, 0xf0ead8, ty);
-  B.box(X, ty + 8.2, kz + 5, 24, 0.8, 16, 0xe2dccd);
-  B.prism(X, ty + 8.6, kz + 5, 25, 4, 17, roofB, Math.PI / 2);
-  B.box(X, ty + 0.03, kz + 7, 3, 0.06, 20, 0x9a1f2a);
-  B.box(X, ty + 0.4, kz + 3.6, 5, 0.8, 3, 0xd9c9a0);
-  B.box(X, ty + 1.4, kz + 2.6, 1.6, 2.4, 0.4, 0x9a1f2a);
-  B.box(X, ty + 1.0, kz + 3.5, 1.6, 0.3, 1.2, 0xc9a13a);
-  G.sphere(X, ty + 2.8, kz + 2.6, 0.25, 0xffe08a);
-  addBoxCollider(X, kz + 2.6, 0.9, 0.3);
-  SPOTS.throne = { x: X, z: kz + 4.4, y: ty + 0.8 };
-  for (const sx of [-12, 12]) flagPole(B, X + sx, kz + 14, 0x3b5c9a, 7, ty);
-  // 城下町
-  const H = (id, dx, dz, ry, o) => house(B, Object.assign({ id, x: X + dx, z: Z + dz, ry, wall: 0xefe6d2, roof: 0xb4553a, y }, o));
-  H('aldia_weapon', 24, -16, 0, { w: 8, d: 7, h: 4.2, roof: 0x6a4a3a, sign: '武器屋 ダリオ', awning: 0x8a3a2a });
-  H('aldia_item', 42, -16, 0, { w: 8, d: 7, h: 4.2, roof: 0x3a7a4a, sign: '道具屋 ミネルバ', awning: 0x3a8a5a });
-  H('aldia_inn', -26, -18, 0, { w: 11, d: 9, h: 7, roof: 0xb4553a, sign: '宿屋 金の獅子亭', chimney: true });
-  H('aldia_guild', -46, -18, 0, { w: 10, d: 8, h: 6, roof: 0x5a4a8a, sign: '冒険者ギルド' });
-  H('aldia_church', -34, 36, Math.PI, { w: 12, d: 16, h: 9, wall: 0xf4f0e6, roof: 0x4a5a7a, sign: '教会' });
-  tower(B, X - 34, Z + 47, 3.2, 16, 0xf4f0e6, 0x4a5a7a, y);
-  H('aldia_bar', 30, 20, Math.PI, { w: 10, d: 8, h: 5.5, roof: 0x8a4a2a, sign: '酒場 踊る子鹿亭', chimney: true });
-  H('aldia_lib', 50, 38, Math.PI, { w: 10, d: 9, h: 6.5, wall: 0xd9d0bb, roof: 0x3a4a5a, sign: '王立図書館' });
-  const homes = [[70, -14, 0], [88, -16, 0], [106, -14, 0], [72, 22, Math.PI], [92, 24, Math.PI], [110, 22, Math.PI],
-    [-70, -14, 0], [-90, -16, 0], [-110, -14, 0], [-72, 22, Math.PI], [-94, 24, Math.PI], [-112, 22, Math.PI],
-    [-20, 70, Math.PI / 2], [-20, 92, Math.PI / 2], [20, 72, -Math.PI / 2], [20, 96, -Math.PI / 2],
-    [-60, 70, Math.PI], [60, 72, Math.PI], [-96, 76, 0], [96, 80, 0], [-50, 110, 0], [50, 112, 0], [0, 120, Math.PI]];
-  const roofs = [0xb4553a, 0x9a4a3a, 0xc26a3a, 0x8a5a4a, 0x6a6a8a];
-  homes.forEach(([dx, dz, ry], i) => H('aldia_h' + i, dx, dz, ry, { w: 7 + (i % 3), d: 6.5, h: 4 + (i % 2) * 2.4, roof: roofs[i % roofs.length], chimney: i % 2 === 0 }));
-  fountain(B, G, X, Z + 22, 1.2);
-  statue(B, X - 12, Z - 44);
-  statue(B, X + 12, Z - 44);
-  for (let k = -5; k <= 5; k++) if (k !== 0) { const x = X + k * 22, z = Z - 8; if (roadClear(x, z, 0.8)) lamp(B, G, x, z, 3.6); }
-  for (let k = -5; k <= 5; k++) if (k !== 0) { const x = X + k * 22, z = Z + 8; if (roadClear(x, z, 0.8)) lamp(B, G, x, z, 3.6); }
-  stall(B, X + 8, Z + 40, Math.PI, 0xd9a13a, [0xe85a4a, 0xf2d24a, 0x7ab84a]);
-  stall(B, X - 10, Z + 42, Math.PI, 0x4a8ab8, [0xf4f1ea, 0xc9a06a]);
-  for (const sx of [-1, 1]) flagPole(B, X + E - 4, Z + sx * 12, 0x3b5c9a, 8, y);
-  warpStone(G, B, 'aldia', '王都アルディア', X + 14, Z + 10);
-  finishPlace(B, G);
-}
-
 function buildAcademy() {
   const pl = PLACE.academy, B = new Builder(), G = new Builder();
   const X = pl.x, Z = pl.z, y = pl.fh;
@@ -596,7 +559,7 @@ function buildGate() {
   const pl = PLACE.gate, B = new Builder(), G = new Builder();
   const X = pl.x, Z = pl.z;
   // 道の向きに直交する柵と門
-  const rs = ROAD_DATA.roads[4].samples;
+  const rs = ROAD_DATA.roads[MOUNTAIN_ROAD].samples;
   let best = rs[0];
   for (const s of rs) if (dist2(s.x, s.z, X, Z) < dist2(best.x, best.z, X, Z)) best = s;
   const i = rs.indexOf(best);
@@ -629,21 +592,33 @@ function buildEmpire() {
   const pl = PLACE.empire, B = new Builder(), G = new Builder();
   const X = pl.x, Z = pl.z, y = pl.fh, E = 122;
   const wallC = 0x5e5a58, roofR = 0x8a1a1a;
+  // 帝国の城壁・塔・家は魔法で壊せる（壁は一片ずつ）
+  const EW = (x1, z1, x2, z2) => {
+    const L = Math.hypot(x2 - x1, z2 - z1), n = Math.max(1, Math.round(L / 30));
+    for (let i = 0; i < n; i++) {
+      const ax = lerp(x1, x2, i / n), az = lerp(z1, z2, i / n), bx = lerp(x1, x2, (i + 1) / n), bz = lerp(z1, z2, (i + 1) / n);
+      makeStructure({ x: (ax + bx) / 2, z: (az + bz) / 2, r: L / n / 2, hp: 40000, name: '帝都の城壁', zone: 'empire' }, (sb) => wallLine(sb, ax, az, bx, bz, 14, 4, wallC, y));
+    }
+  };
+  const ET = (x, z, r, h, roof, ty) => makeStructure({ x, z, r: r + 1, hp: 30000, name: '帝都の塔', zone: 'empire' }, (sb) => tower(sb, x, z, r, h, wallC, roof, ty));
   // 城壁（南に門）
   const gw = 9;
-  wallLine(B, X - E, Z - E, X + E, Z - E, 14, 4, wallC, y);
-  wallLine(B, X + E, Z - E, X + E, Z + E, 14, 4, wallC, y);
-  wallLine(B, X - E, Z - E, X - E, Z + E, 14, 4, wallC, y);
+  EW(X - E, Z - E, X + E, Z - E);
+  EW(X + E, Z - E, X + E, Z + E);
+  EW(X - E, Z - E, X - E, Z + E);
   // 南門は道の入る位置に合わせる
-  const rs = ROAD_DATA.roads[4].samples;
+  const rs = ROAD_DATA.roads[MOUNTAIN_ROAD].samples;
   let gxs = X;
   for (const s of rs) if (Math.abs(s.z - (Z + E)) < 3) gxs = s.x;
-  wallLine(B, X - E, Z + E, gxs - gw, Z + E, 14, 4, wallC, y);
-  wallLine(B, gxs + gw, Z + E, X + E, Z + E, 14, 4, wallC, y);
-  B.box(gxs, y + 15, Z + E, gw * 2 + 6, 3, 4.4, wallC);
-  tower(B, gxs - gw - 3, Z + E, 4.2, 20, wallC, roofR, y);
-  tower(B, gxs + gw + 3, Z + E, 4.2, 20, wallC, roofR, y);
-  for (const [cx, cz] of [[-E, -E], [E, -E], [-E, E], [E, E], [0, -E], [-E, 0], [E, 0]]) tower(B, X + cx, Z + cz, 6, 22, wallC, roofR, y);
+  EW(X - E, Z + E, gxs - gw, Z + E);
+  EW(gxs + gw, Z + E, X + E, Z + E);
+  makeStructure({ x: gxs, z: Z + E, r: 12, hp: 50000, name: '帝都の南門', zone: 'empire' }, (sb) => {
+    sb.box(gxs, y + 15, Z + E, gw * 2 + 6, 3, 4.4, wallC);
+    tower(sb, gxs - gw - 3, Z + E, 4.2, 20, wallC, roofR, y);
+    tower(sb, gxs + gw + 3, Z + E, 4.2, 20, wallC, roofR, y);
+  });
+  SPOTS.empireGate = { x: gxs, z: Z + E - 14 };
+  for (const [cx, cz] of [[-E, -E], [E, -E], [-E, E], [E, E], [0, -E], [-E, 0], [E, 0]]) ET(X + cx, Z + cz, 6, 22, roofR, y);
   // 宮殿
   const kz = Z - 70;
   B.box(X, y + 1.5, kz, 80, 3, 46, 0x4a4644);
@@ -673,7 +648,12 @@ function buildEmpire() {
   SPOTS.emperorThrone = { x: X, z: kz + 5.2, y: ty + 1 };
   for (const sx of [-15, 15]) flagPole(B, X + sx, kz + 18, 0x8a1a1a, 9, ty);
   // 町並み
-  const H = (id, dx, dz, ry, o) => house(B, Object.assign({ id, x: X + dx, z: Z + dz, ry, wall: 0x9a918a, roof: 0x5a2a2a, y }, o));
+  const H = (id, dx, dz, ry, o) => {
+    let info;
+    makeStructure({ x: X + dx, z: Z + dz, r: Math.max(o.w || 7, o.d || 6) * 0.7, hp: 12000, name: '帝都の建物', zone: 'empire' },
+      (sb) => { info = house(sb, Object.assign({ id, x: X + dx, z: Z + dz, ry, wall: 0x9a918a, roof: 0x5a2a2a, y }, o)); });
+    return info;
+  };
   H('empire_weapon', -32, 20, Math.PI / 2, { w: 9, d: 8, h: 5, sign: '帝国武具店', awning: 0x6a1a1a });
   H('empire_item', 30, 18, -Math.PI / 2, { w: 9, d: 8, h: 5, sign: '帝国薬舗', awning: 0x3a3a3a });
   H('empire_inn', -34, 52, Math.PI / 2, { w: 12, d: 10, h: 8, sign: '宿屋 鉄の揺り籠', chimney: true });
@@ -1041,7 +1021,7 @@ function buildDungeon() {
 }
 
 function buildAllPlaces(progress) {
-  const steps = [buildStart, buildKazami, buildAldia, buildAcademy, buildBelka, buildOasis, buildPass, buildGate,
+  const steps = [buildStart, buildKazami, buildCapital, buildAcademy, buildBelka, buildOasis, buildPass, buildGate,
     buildEmpire, buildRuins, buildLeafe, buildSwamp, buildMarina, buildIsland, buildDragon, buildSpring, buildBridges, buildMarkers, buildDungeon];
   steps.forEach((f, i) => { f(); progress && progress(i / steps.length); });
 }

@@ -141,6 +141,9 @@ const SOUND = (() => {
       mel: [7, null, null, null, 6, null, null, null, 5, null, 4, null, null, null, null, null, 2, null, null, null, 3, null, 4, null, 3, null, null, null, null, null, null, null] },
     battle: { bpm: 152, root: 52, scale: 'harm', chords: [0, 6, 5, 4], pad: 0.25, arp: 'fast', bass: 'drive', lead: 'saw', drums: 'battle',
       mel: [7, null, 7, 6, 7, null, 9, null, 8, null, 7, null, 6, null, 4, null, 5, null, 5, 4, 5, null, 7, null, 6, 5, 4, 3, 4, null, null, null] },
+    requiem: { bpm: 58, root: 45, scale: 'minor', chords: [0, 5, 3, 4], pad: 0.6, arp: 'slow', bass: 'long', lead: 'flute', dark: true,
+      mel: [4, null, null, 3, 2, null, null, null, 0, null, 1, 2, 3, null, null, null, 4, null, 5, null, 4, null, 3, 2, 1, null, null, null, null, null, null, null,
+        7, null, null, 6, 5, null, 4, null, 3, null, 4, 5, 4, null, null, null, 2, null, 3, null, 2, 1, 0, null, 0, null, null, null, null, null, null, null] },
     boss: { bpm: 164, root: 48, scale: 'harm', chords: [0, 1, 0, 4], pad: 0.35, arp: 'fast', bass: 'drive', lead: 'saw', drums: 'boss', dark: true,
       mel: [7, null, 8, null, 7, null, 6, 7, 4, null, null, 4, 5, 6, 7, null, 8, null, 9, null, 8, null, 7, 6, 7, null, null, null, 11, 10, 9, 8] }
   };
@@ -298,6 +301,10 @@ const SOUND = (() => {
     chargeStart, chargeLevel, chargeStop,
     cast(el, s) {
       if (el === 'fire') { noise(0.45, 0.22, 'bandpass', 300, 2200, 1.2, 0, false, 0.2, 0.05); tone(90, 0.25, 'sine', 0.2, 0.6); }
+      else if (el === 'water') { noise(0.5, 0.2, 'lowpass', 400, 2400, 1, 0, true, 0.2, 0.1); }
+      else if (el === 'gravity' || el === 'dark') { tone(80, 0.5, 'sawtooth', 0.08, 0.5, 0, sfxBus, 0.4); }
+      else if (el === 'wood') { noise(0.25, 0.15, 'bandpass', 600, 300, 2); }
+      else if (el === 'light') { [1047, 1568].forEach((f, i) => tone(f, 0.5, 'sine', 0.05, 1, i * 0.05, sfxBus, 0.6)); }
       else if (el === 'ice') { [1760, 2349, 3136].forEach((f, i) => tone(f, 0.35, 'sine', 0.05, 1.02, i * 0.03, sfxBus, 0.4)); noise(0.3, 0.08, 'highpass', 6000, 9000, 0.7); }
       else { noise(0.12, 0.12, 'highpass', 3000, 6000, 0.7); tone(1200, 0.08, 'square', 0.04, 0.5); }
       void s;
@@ -326,6 +333,34 @@ const SOUND = (() => {
       noise(0.08, 0.5 * k, 'lowpass', 6000, 2000, 0.5, 0.02);
       noise(1.8 + Math.min(3, s * 0.3), 0.45 * k, 'lowpass', 400, 60, 0.8, 0.1, true, 0.5, 0.15);
       tone(55, 0.9, 'sawtooth', 0.08 * k, 0.7, 0.05);
+    },
+    wave(s) {
+      const k = big(s);
+      noise(1.6 + Math.min(1.5, s * 0.08), 0.45 * k, 'lowpass', 300, 1800, 0.7, 0, true, 0.3, 0.4);
+      noise(1.2, 0.25 * k, 'highpass', 2500, 5000, 0.6, 0.3, false, 0.3, 0.3);
+    },
+    gravity(s) {
+      const k = big(s);
+      tone(70, 1.0, 'sawtooth', 0.12 * k, 0.4, 0, sfxBus, 0.5);
+      tone(40, 1.1, 'sine', 0.35 * k, 0.8);
+      noise(0.9, 0.2 * k, 'lowpass', 200, 900, 2, 0, true, 0.4, 0.6);
+    },
+    wood(s) {
+      const k = big(s);
+      noise(0.7, 0.45 * k, 'lowpass', 900, 120, 0.9, 0, true, 0.3, 0.01);
+      for (let i = 0; i < 6; i++) noise(0.08, 0.2 * k, 'bandpass', 700 + Math.random() * 600, 300, 2, 0.05 + i * 0.06);
+      tone(90, 0.4, 'sine', 0.3 * k, 0.5);
+    },
+    light(s) {
+      const k = big(s);
+      [523, 784, 1047, 1568, 2093].forEach((f, i) => tone(f, 1.6, 'sine', 0.06 * k, 1, i * 0.04, sfxBus, 0.9));
+      noise(1.2, 0.18 * k, 'highpass', 4000, 8000, 0.5, 0, false, 0.6, 0.05);
+    },
+    dark(s) {
+      const k = big(s);
+      tone(55, 2.0, 'sawtooth', 0.1 * k, 0.7, 0, sfxBus, 0.8);
+      tone(58, 2.0, 'sawtooth', 0.08 * k, 0.7, 0, sfxBus, 0.8);
+      noise(1.8, 0.2 * k, 'lowpass', 300, 120, 3, 0, true, 0.6, 0.3);
     },
     hit() { noise(0.08, 0.2, 'bandpass', 900, 300, 1.2); tone(140, 0.08, 'sine', 0.15, 0.6); },
     enemyDie() { tone(420, 0.35, 'triangle', 0.1, 0.35); noise(0.3, 0.12, 'lowpass', 2000, 200, 1); },

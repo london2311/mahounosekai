@@ -333,16 +333,25 @@ function iceClusterFx(pos, s) {
    属性と詠唱
    ========================================================= */
 const ELEM = {
-  fire:    { name: '炎', spell: 'ファイア', color: 0xff7a2a, c2: 0xffe08a, css: '#ff8a3a', mult: 2.4 },
-  ice:     { name: '氷', spell: 'フロスト', color: 0x7ad4ff, c2: 0xe8fbff, css: '#7ad4ff', mult: 2.1 },
-  thunder: { name: '雷', spell: 'スパーク', color: 0xffe45a, c2: 0xffffff, css: '#ffe45a', mult: 2.2 }
+  fire:    { name: '炎', spell: '煉獄', color: 0xff7a2a, c2: 0xffe08a, css: '#ff8a3a', mult: 2.4, key: 1 },
+  water:   { name: '水', spell: '大海嘯', color: 0x2a8aff, c2: 0xbfe6ff, css: '#4aa0ff', mult: 2.2, key: 2 },
+  ice:     { name: '氷', spell: '永久凍土', color: 0x7ad4ff, c2: 0xe8fbff, css: '#7ad4ff', mult: 2.1, key: 3 },
+  thunder: { name: '雷', spell: '天雷', color: 0xffe45a, c2: 0xffffff, css: '#ffe45a', mult: 2.2, key: 4 },
+  gravity: { name: '重', spell: '崩星', color: 0x9a6aff, c2: 0x2a0a4a, css: '#a47aff', mult: 2.6, key: 5 },
+  wood:    { name: '樹', spell: '千年樹', color: 0x5ab83a, c2: 0xd8f0a0, css: '#6ac84a', mult: 2.1, key: 6 },
+  light:   { name: '光', spell: '天照', color: 0xfff0a0, c2: 0xffffff, css: '#fff0a0', mult: 2.5, key: 7 },
+  dark:    { name: '闇', spell: '深淵', color: 0x9a3ae8, c2: 0x1a0024, css: '#b05aff', mult: 2.5, key: 8 }
 };
+const ELEM_ORDER = ['fire', 'water', 'ice', 'thunder', 'gravity', 'wood', 'light', 'dark'];
 const MAGIC = { charging: false, chargeE: 0, chargeT: 0, cooldown: 0, projectiles: [] };
 
-function tapCost() { return STATE.aura * 0.06; }
+function tapCost() { return STATE.aura * 0.03; }
 // 魔法の大きさ（込めた魔力で上限なく大きくなる）
 function spellScale(E) { return 0.35 * Math.pow(Math.max(E, 1) / 6, 0.45); }
-function auraRadius() { return 0.95 + 0.4 * (Math.sqrt(STATE.aura / 100) - 1); }
+// オーラの大きさ（魔力の量で上限なく大きくなる）
+function auraRadius() { return 1 + 0.9 * Math.pow(Math.max(STATE.aura, 100) / 50000, 0.35); }
+// 見た目の大きさ（飛んでいく魔法の玉など）
+function visScale(s) { return 0.4 + Math.pow(s, 0.7) * 0.45; }
 
 function beginCast() {
   if (GAME.paused || MAGIC.charging || GAME.dead) return;
@@ -379,8 +388,9 @@ function updateCharge(dt) {
   // 杖に集まる光
   const o = player.orbWorld(tmpV);
   const e = ELEM[STATE.element];
-  const s = spellScale(MAGIC.chargeE);
-  SOUND.chargeLevel(Math.max(0, s / spellScale(tapCost()) - 1));
+  const s0 = spellScale(MAGIC.chargeE);
+  SOUND.chargeLevel(Math.max(0, s0 / spellScale(tapCost()) - 1));
+  const s = visScale(s0) * 0.6;
   const R = 0.6 + s * 2;
   for (let k = 0; k < 2 + Math.min(10, s * 3); k++) {
     const a = Math.random() * Math.PI * 2, u = Math.random() * 2 - 1, r = Math.sqrt(1 - u * u);
@@ -502,8 +512,9 @@ function castSpell(el, E) {
   const dir = aimDirection(from, new THREE.Vector3());
   player.castAnim = 1;
   player.faceTo = Math.atan2(dir.x, dir.z); player.faceTimer = 0.35;
-  flashLight(from, e.color, 2 + s, 8 + s * 6, 0.25);
-  burst(from.x, from.y, from.z, 10 + s * 6, 3 + s * 2, 0.35, 0.2 + s * 0.2, e.c2);
+  const vs = visScale(s);
+  flashLight(from, e.color, Math.min(6, 2 + s * 0.3), 8 + vs * 6, 0.25);
+  burst(from.x, from.y, from.z, 10 + Math.min(30, s * 3), 3 + vs * 2, 0.35, 0.2 + vs * 0.15, e.c2);
   SOUND.cast(el, s);
   if (el === 'fire') {
     MAGIC.projectiles.push(makeProjectile('fire', from, dir, s, power));
@@ -511,17 +522,20 @@ function castSpell(el, E) {
     const side = new THREE.Vector3(-dir.z, 0, dir.x).normalize();
     for (const off of [-1, 0, 1]) {
       const d = dir.clone().addScaledVector(side, off * 0.09).normalize();
-      MAGIC.projectiles.push(makeProjectile('ice', from.clone().addScaledVector(side, off * 0.3 * (1 + s)), d, s * 0.75, power / 3 * 1.1));
+      MAGIC.projectiles.push(makeProjectile('ice', from.clone().addScaledVector(side, off * 0.3 * (1 + visScale(s))), d, s * 0.75, power / 3 * 1.1));
     }
+  } else if (el === 'water') {
+    castTidalWave(from, dir, s, power);
   } else {
-    let point;
+    updateAim();
     const tgt = FOCUS.target;
-    if (tgt) point = new THREE.Vector3(tgt.pos.x, tgt.pos.y + tgt.height * 0.5, tgt.pos.z);
-    else {
-      updateAim();
-      point = AIM.hit ? AIM.ground.clone().add(new THREE.Vector3(0, 0.5, 0)) : AIM.point.clone();
-    }
-    thunderStrike(point, s, power, 2, tgt || null, null);
+    const point = tgt ? new THREE.Vector3(tgt.pos.x, tgt.pos.y + tgt.height * 0.5, tgt.pos.z)
+      : AIM.hit ? AIM.ground.clone().add(new THREE.Vector3(0, 0.5, 0)) : AIM.point.clone();
+    if (el === 'thunder') thunderStrike(point, s, power, 2, tgt || null, null);
+    else if (el === 'gravity') castGravity(point, s, power);
+    else if (el === 'wood') castWood(point, s, power);
+    else if (el === 'light') castLight(point, s, power);
+    else if (el === 'dark') castDark(point, s, power);
   }
 }
 
@@ -531,15 +545,17 @@ function makeProjectile(kind, from, dir, s, power) {
   if (kind === 'fire') {
     // 芯は白く、外側ほど赤い火の玉
     mesh = new THREE.Group();
-    const core = makeGlowSprite(0xfff6dc, 1.3 * (0.4 + s), 1);
-    const mid = makeGlowSprite(0xffa040, 2.6 * (0.4 + s), 0.9);
-    const outer = makeGlowSprite(0xff4a10, 4.4 * (0.4 + s), 0.55);
+    const vs = visScale(s);
+    const core = makeGlowSprite(0xfff6dc, 1.3 * vs, 1);
+    const mid = makeGlowSprite(0xffa040, 2.6 * vs, 0.9);
+    const outer = makeGlowSprite(0xff4a10, 4.4 * vs, 0.55);
     mesh.add(outer, mid, core);
     mesh.userData.sprites = [core, mid, outer];
   } else {
     mesh = new THREE.Mesh(crystalGeo, new THREE.MeshPhongMaterial({ color: 0xdff6ff, emissive: 0x1a5a8a, specular: 0xffffff, shininess: 120,
       transparent: true, opacity: 0.92, flatShading: true }));
-    mesh.scale.set(0.22 * (0.5 + s * 1.4), 0.9 * (0.5 + s * 1.4), 0.22 * (0.5 + s * 1.4));
+    const vs = visScale(s) * 1.4;
+    mesh.scale.set(0.22 * vs, 0.9 * vs, 0.22 * vs);
     const glow = makeGlowSprite(0x8adcff, 1.2, 0.5);
     glow.scale.set(1.6 / mesh.scale.x * (0.3 + s * 0.3), 1.6 / mesh.scale.y * (0.3 + s * 0.3), 1);
     mesh.add(glow);
@@ -560,7 +576,7 @@ function updateProjectiles(dt) {
       p.vel.lerp(tmpV, Math.min(1, dt * 6));
     }
     p.pos.addScaledVector(p.vel, dt);
-    const s = p.s, x = p.pos.x, y = p.pos.y, z = p.pos.z;
+    const s = visScale(p.s), x = p.pos.x, y = p.pos.y, z = p.pos.z;
     const bx = -p.vel.x * 0.08, by = -p.vel.y * 0.08, bz = -p.vel.z * 0.08;
     p.emit += dt * 60;
     const n = Math.floor(p.emit); p.emit -= n;
@@ -599,7 +615,7 @@ function updateProjectiles(dt) {
       if (!en.alive || !en.active) continue;
       const dy = (en.pos.y + en.height * 0.5) - p.pos.y;
       const d = Math.hypot(en.pos.x - p.pos.x, dy * 0.8, en.pos.z - p.pos.z);
-      if (d < en.radius + p.s * 0.8) { hit = en; break; }
+      if (d < en.radius + visScale(p.s) * 0.8) { hit = en; break; }
     }
     const ground = groundAt(p.pos.x, p.pos.z);
     if (hit || p.pos.y < ground || p.life <= 0) {
@@ -633,6 +649,9 @@ function fireExplode(pos, s, power, direct) {
   spray(PS, 10 + s * 6, x, g + 0.3, z, { speed: R * 2.5 + 3, up: R * 1.5 + 3, upOnly: true, life: 1.2, size: 0.12 + s * 0.08,
     c0: 0x2a2018, c1: 0x3a3028, alpha: 0.95, grav: 14, drag: 0.3, cap: 80 });
   shockRing(x, z, R * 1.6, 0xffb070);
+  if (s > 6) deformCrater(x, z, R * 0.6, R * 0.16);
+  damageArmy(x, z, R, power, 'fire', { fling: true });
+  damageStructs(x, z, R, power);
   groundDecal(x, z, R * 0.95, 0x140c08, 0.75, 9);
   groundDecal(x, z, R * 0.6, 0xff5a10, 0.5, 1.2, true);
   flashLight(new THREE.Vector3(x, y, z), 0xff8a3a, Math.min(7, 4 + s), 16 + R * 4, 0.6);
@@ -657,6 +676,16 @@ function iceHit(pos, s, power, direct) {
     c0: 0xffffff, c1: 0xc0e4ff, alpha: 0.55, drag: 2.5, grav: 0.3, fade: 1, cap: 120 });
   spray(PG, 20 + s * 12, pos.x, pos.y, pos.z, { speed: 4 + s * 3, life: 0.7, size: 0.06 + s * 0.04, c0: 0xffffff, c1: 0x7ad4ff, grav: 5, drag: 1, cap: 150 });
   shockRing(pos.x, pos.z, R * 1.4, 0x9adcff, 0.5);
+  damageArmy(pos.x, pos.z, R, power, 'ice');
+  damageStructs(pos.x, pos.z, R, power * 0.8);
+  // 大きく込めた氷は、あたり一面を凍土に変える
+  const extra = Math.min(10, Math.floor(s / 2));
+  for (let k = 0; k < extra; k++) {
+    const a = Math.random() * 6.28, r = R * (0.3 + Math.random() * 0.7);
+    const p2 = new THREE.Vector3(pos.x + Math.cos(a) * r, 0, pos.z + Math.sin(a) * r);
+    p2.y = groundAt(p2.x, p2.z);
+    setTimeout(() => iceClusterFx(p2, s * 0.6), 60 + k * 50);
+  }
   groundDecal(pos.x, pos.z, R * 1.1, 0xdff4ff, 0.55, 6);
   flashLight(pos, 0x7ad4ff, 2.5 + s, 10 + s * 4, 0.35);
   SOUND.ice(s);
@@ -691,6 +720,25 @@ function thunderStrike(point, s, power, chains, first, from) {
     if (!en.alive || !en.active) continue;
     const d = Math.hypot(en.pos.x - point.x, en.pos.z - point.z) - en.radius;
     if (en === first || d < R) { damageEnemy(en, power * (en === first ? 1 : 0.7), 'thunder', point); hitList.push(en); }
+  }
+  damageArmy(point.x, point.z, R, power, 'thunder', { fling: s > 4 });
+  damageStructs(point.x, point.z, R, power * 0.7);
+  // 大きく込めた雷は、雷雨となって降り注ぐ
+  if (!from) {
+    const extra = Math.min(14, Math.floor(s * 0.8));
+    for (let k = 0; k < extra; k++) {
+      setTimeout(() => {
+        const a = Math.random() * 6.28, r = R * (0.4 + Math.random() * 1.4);
+        const q = new THREE.Vector3(point.x + Math.cos(a) * r, 0, point.z + Math.sin(a) * r);
+        q.y = groundAt(q.x, q.z) + 0.3;
+        lightningFx(q.clone().add(new THREE.Vector3(0, 30 + s * 6, 0)), q, 0.08 + s * 0.04, 2);
+        spray(PG, 12, q.x, q.y, q.z, { speed: 6, up: 3, life: 0.6, size: 0.08, c0: 0xffffff, c1: 0x9ab8ff, grav: 12, cap: 20 });
+        groundDecal(q.x, q.z, R * 0.4, 0x0c0c14, 0.6, 6);
+        damageArmy(q.x, q.z, R * 0.45, power * 0.5, 'thunder');
+        for (const en of ENEMIES) if (en.alive && en.active && Math.hypot(en.pos.x - q.x, en.pos.z - q.z) < R * 0.45 + en.radius) damageEnemy(en, power * 0.4, 'thunder', q);
+        if (k % 3 === 0) SOUND.thunder(s * 0.5);
+      }, 90 + k * 70 + Math.random() * 60);
+    }
   }
   // 連鎖
   if (chains > 0) {
@@ -765,7 +813,7 @@ const _auraTarget = new THREE.Color();
 function updateAura(dt, t) {
   const e = ELEM[STATE.element];
   const base = auraRadius();
-  const charge = MAGIC.charging ? spellScale(MAGIC.chargeE) * 1.6 : 0;
+  const charge = MAGIC.charging ? (visScale(spellScale(MAGIC.chargeE)) - visScale(spellScale(tapCost()))) * 1.2 : 0;
   auraPulse = Math.max(0, auraPulse - dt * 2);
   const R = base + charge + auraPulse * base * 0.4;
   const col = auraMat.uniforms.color.value;
@@ -773,6 +821,8 @@ function updateAura(dt, t) {
   auraMat.uniforms.time.value = t;
   auraMat.uniforms.strength.value = 0.35 + (MAGIC.charging ? 0.4 : 0) + auraPulse * 0.5;
   const p = player.pos;
+  auraMesh.visible = auraRing.visible = player.root.visible;
+  if (!player.root.visible) return;
   auraMesh.position.set(p.x, p.y + 1.1 + (R - 1) * 0.45, p.z);
   auraMesh.scale.set(R * 0.75, R * 1.35, R * 0.75);
   auraRing.position.set(p.x, groundAt(p.x, p.z, p.y) + 0.06, p.z);
@@ -791,7 +841,7 @@ function updateAura(dt, t) {
   }
   player.orb.material.color.setHex(e.c2);
   player.orbGlow.material.color.setHex(e.color);
-  player.orbGlow.scale.setScalar(0.9 + (MAGIC.charging ? spellScale(MAGIC.chargeE) * 3 : 0));
+  player.orbGlow.scale.setScalar(0.9 + (MAGIC.charging ? visScale(spellScale(MAGIC.chargeE)) * 1.2 : 0));
 }
 
 /* =========================================================
