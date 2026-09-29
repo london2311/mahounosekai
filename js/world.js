@@ -634,7 +634,7 @@ function inSafeZone(x, z) {
    地形の区画（近くは細かく、遠くは粗く）
    ========================================================= */
 const CHUNK = CONFIG.chunkSize, CN = WS / CHUNK, CSEG = CHUNK / CELL;
-const terrainMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, flatShading: true });
+const terrainMat = addSurfaceDetail(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, flatShading: true }), 1);
 const chunks = [];
 
 function buildChunkGeo(ci, cj, st) {

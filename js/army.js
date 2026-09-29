@@ -49,37 +49,65 @@ class DecalBatch {
   }
 }
 
-/* ---------- 横たわる亡骸（建物と一緒にまとめて描く用） ---------- */
+/* ---------- 横たわる亡骸（王都などに最初からあるもの） ---------- */
+// 見た目の型ごとに InstancedMesh にまとめて描く
+const CORPSE_LOOKS = {
+  ally: { skin: 0xe8b88e, hair: 0x4a3222, top: 0x2a4a8a, bottom: 0x4a4a5a, armor: 0xa9b0b8, shoes: 0x2a2018, female: false, blood: true },
+  enemy: { skin: 0xd9a47a, hair: 0x2a1f1a, top: 0x6a1010, bottom: 0x2a2622, armor: 0x3e3e48, hat: 'helmet', hatColor: 0x34343c, shoes: 0x1e1a16, female: false },
+  civ0: { skin: 0xf0c9a0, hair: 0x4a3222, top: 0x7a4a3a, bottom: 0x4a3a2a, female: false, blood: true },
+  civ1: { skin: 0xe8b88e, hair: 0x2a1f1a, top: 0x3f6a8a, dress: 0x3f6a8a, hairStyle: 'long', female: true, blood: true },
+  civ2: { skin: 0xd9a47a, hair: 0x7a5230, top: 0x5d7a3a, bottom: 0x3a3228, female: false, blood: true },
+  civ3: { skin: 0xf0c9a0, hair: 0xb88a4a, top: 0x9a3b3b, dress: 0x6a4a7a, hairStyle: 'bun', female: true, blood: true },
+  civ4: { skin: 0xc68a5e, hair: 0x1c1c24, top: 0x8a6a3a, bottom: 0x4a4a6a, female: false, blood: true },
+  civ5: { skin: 0xe8b88e, hair: 0x8a3b22, top: 0xa8743a, dress: 0xa8743a, hairStyle: 'pony', female: true, blood: true }
+};
+const STATIC_CORPSE = new Map();
 function corpse(B, x, z, ry, o = {}) {
   const y = groundAt(x, z);
-  const cloth = o.cloth || 0x3a4a6a, skin = o.skin || 0xd9a47a, pants = o.pants || 0x3a3228;
-  const L = (lx, ly, lz, w, h, d, c, rx = 0, rz = 0) => { const [ox, oz] = rotXZ(lx, lz, ry); B.box(x + ox, y + ly, z + oz, w, h, d, c, ry, rx, rz); };
-  const flat = o.crushed ? 0.4 : 1;
-  L(0, 0.22 * flat, 0, 0.78, 0.4 * flat, 0.9, cloth);
-  if (o.armor) L(0, 0.3 * flat, 0, 0.82, 0.3 * flat, 0.7, o.armor);
-  // 血に染まった服
-  L(0.15, 0.43 * flat, 0.1, 0.4, 0.03, 0.45, 0x5a0808);
-  if (!o.noHead) { const [ox, oz] = rotXZ(0, 0.72, ry); B.sphere(x + ox, y + 0.22 * flat, z + oz, 0.3, skin, 1, flat, 1); B.sphere(x + ox, y + 0.3 * flat, z + oz - 0.02, 0.31, o.hair || 0x2a1f1a, 1, 0.6 * flat, 1); }
+  let look;
+  if (o.armor) look = o.cloth === 0x2a4a8a ? 'ally' : 'enemy';
+  else look = 'civ' + (Math.abs(hashStr(String(o.cloth) + String(o.hair))) % 6);
+  let v = Math.random() < 0.35 ? 4 : 0;
   const lost = o.lost || '';
-  const armA = o.armAng !== undefined ? o.armAng : 0.4;
-  if (!lost.includes('armL')) L(-0.58, 0.14, 0.15, 0.2, 0.2, 0.78, cloth, 0, 0);
-  if (!lost.includes('armR')) { const [ox, oz] = rotXZ(0.62, 0.35, ry + armA); B.box(x + ox, y + 0.14, z + oz, 0.2, 0.2, 0.78, cloth, ry + armA); }
-  if (!lost.includes('legL')) L(-0.2, 0.15, -0.85, 0.26, 0.26, 0.85, pants);
-  if (!lost.includes('legR')) L(0.24, 0.15, -0.82, 0.26, 0.26, 0.85, pants, 0, 0.1);
-  // 失われた手足の断面
-  for (const part of ['armL', 'armR', 'legL', 'legR']) {
-    if (!lost.includes(part)) continue;
-    const sx = part.endsWith('L') ? -1 : 1;
-    const lz = part.startsWith('arm') ? 0.35 : -0.45;
-    L(sx * (part.startsWith('arm') ? 0.45 : 0.22), 0.2, lz, 0.22, 0.22, 0.12, 0x7a0a0a);
-    // 少し離れたところに転がる手足
-    const [fx, fz] = rotXZ(sx * (1.2 + Math.random()), lz + (Math.random() - 0.5) * 2, ry);
-    const gy = groundAt(x + fx, z + fz);
-    B.box(x + fx, gy + 0.11, z + fz, 0.2, 0.2, part.startsWith('arm') ? 0.7 : 0.85, part.startsWith('arm') ? cloth : pants, Math.random() * 6);
-    B.box(x + fx, gy + 0.12, z + fz, 0.21, 0.21, 0.1, 0x7a0a0a, Math.random() * 6);
-  }
+  if (lost.includes('arm') || lost.includes('leg')) v = 2;
+  if (o.noHead || (o.armor && Math.random() < 0.15)) v = 1;
+  if (o.crushed) v = 3;
+  const key = look + '_' + v;
+  if (!STATIC_CORPSE.has(key)) STATIC_CORPSE.set(key, { look, v, list: [] });
+  STATIC_CORPSE.get(key).list.push([x, y + 0.02, z, ry]);
   if (o.weapon) { const [ox, oz] = rotXZ(0.9, 0.2, ry); B.box(x + ox, y + 0.05, z + oz, 0.08, 0.05, 1.6, 0x9aa0a8, ry + 0.5); }
-  if (o.arrows) for (let k = 0; k < o.arrows; k++) { const [ox, oz] = rotXZ((Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.7, ry); B.box(x + ox, y + 0.6, z + oz, 0.03, 0.8, 0.03, 0x5a4028, 0, 0.3, 0.2); }
+  if (o.arrows) for (let k = 0; k < o.arrows; k++) { const [ox, oz] = rotXZ((Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.7, ry); B.box(x + ox, y + 0.35, z + oz, 0.03, 0.8, 0.03, 0x5a4028, 0, 0.3, 0.2); }
+  // 切り離された手足がそばに転がる
+  if (v === 2 || v === 1) {
+    const [fx, fz] = rotXZ((Math.random() - 0.5) * 3, 1.2 + Math.random() * 1.5, ry);
+    STATIC_GIBS.push([x + fx, z + fz, Math.random() * 6.28, v === 1 ? 'head' : (Math.random() < 0.5 ? 'arm' : 'leg'), look]);
+  }
+}
+const STATIC_GIBS = [];
+const CORPSE_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0.03 });
+// 置いた亡骸を描く（王都を組み立て終えた時に呼ぶ）
+function flushStaticCorpses() {
+  const out = [];
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(BODY_SCALE, BODY_SCALE, BODY_SCALE), p = new THREE.Vector3(), eu = new THREE.Euler();
+  for (const { look, v, list } of STATIC_CORPSE.values()) {
+    const geo = corpseGeometry(CORPSE_LOOKS[look], v);
+    const m = new THREE.InstancedMesh(geo, CORPSE_MAT, list.length);
+    list.forEach(([x, y, z, ry], i) => { eu.set(0, ry, 0); q.setFromEuler(eu); m.setMatrixAt(i, m4.compose(p.set(x, y, z), q, sc)); });
+    m.receiveShadow = true; m.frustumCulled = false;
+    scene.add(m); out.push(m);
+  }
+  STATIC_CORPSE.clear();
+  const byKind = {};
+  for (const g of STATIC_GIBS) { const k = g[3] + '_' + (g[4].startsWith('civ') ? 'civ' : g[4]); (byKind[k] = byKind[k] || []).push(g); }
+  for (const [k, list] of Object.entries(byKind)) {
+    const [which, look] = k.split('_');
+    const geo = gibGeometryLook(look === 'civ' ? CORPSE_LOOKS.civ0 : CORPSE_LOOKS[look], which);
+    const m = new THREE.InstancedMesh(geo, CORPSE_MAT, list.length);
+    list.forEach(([x, z, r], i) => { eu.set(Math.PI / 2 * (which === 'head' ? 0.3 : 1), r, 0); q.setFromEuler(eu); m.setMatrixAt(i, m4.compose(p.set(x, groundAt(x, z) + 0.1, z), q, sc)); });
+    m.frustumCulled = false; scene.add(m); out.push(m);
+  }
+  STATIC_GIBS.length = 0;
+  return out;
 }
 
 /* =========================================================
@@ -159,58 +187,28 @@ function emitFire(x, y, z, s, dt) {
    ========================================================= */
 const ARMY_KINDS = {
   soldier: { name: '帝国兵', hp: 320, atk: 45, speed: 3.4, reach: 1.5, cd: 1.4, exp: 3, gold: 2 },
-  heavy:   { name: '帝国重装兵', hp: 1100, atk: 110, speed: 2.6, reach: 1.8, cd: 1.8, exp: 8, gold: 5, scale: 1.22 },
+  heavy:   { name: '帝国重装兵', hp: 1100, atk: 110, speed: 2.6, reach: 1.8, cd: 1.8, exp: 8, gold: 5, scale: 1.08 },
   archer:  { name: '帝国弓兵', hp: 260, atk: 35, speed: 3.2, reach: 34, cd: 2.8, exp: 3, gold: 2, ranged: true },
   ally:    { name: '王国兵', hp: 1e9, atk: 0, speed: 0, reach: 1.5, cd: 1.4 }
 };
-function soldierGeo(kind) {
-  const B = new Builder();
-  const ally = kind === 'ally';
-  const steel = ally ? 0xa9b0b8 : 0x3a3a44, tab = ally ? 0x2a4a8a : 0x7a1414, skin = 0xd9a47a, leg = ally ? 0x4a4a5a : 0x2a2622;
-  B.box(-0.17, 0.42, 0, 0.24, 0.84, 0.26, leg); B.box(0.17, 0.42, 0, 0.24, 0.84, 0.26, leg);
-  B.box(0, 1.25, 0, 0.76, 0.86, 0.44, steel);
-  B.box(0, 1.05, 0.23, 0.5, 0.9, 0.04, tab);
-  B.box(-0.5, 1.25, 0, 0.2, 0.76, 0.22, steel); B.box(0.5, 1.25, 0, 0.2, 0.76, 0.22, steel);
-  B.sphere(0, 1.96, 0.02, 0.28, skin);
-  B.sphere(0, 2.04, 0, 0.33, steel, 1, 0.85, 1);
-  if (!ally) B.box(0, 2.05, 0.22, 0.4, 0.08, 0.06, 0x14141a);
-  if (kind === 'archer') {
-    B.torus(-0.55, 1.25, 0.25, 0.55, 0.03, 0x5a3a22, 0, Math.PI / 2);
-    B.box(0.2, 1.5, -0.3, 0.15, 0.6, 0.15, 0x6a4a2a);
-  } else {
-    B.cyl(0.6, 1.4, 0.2, 0.03, 0.035, 2.8, 0x4a3422, 5);
-    B.cone(0.6, 2.9, 0.2, 0.07, 0.3, 0xb8c0c8, 5);
-    B.box(-0.62, 1.2, 0.18, 0.1, 0.9, 0.7, tab);
-    B.box(-0.68, 1.2, 0.18, 0.04, 0.3, 0.3, ally ? 0xe8c04a : 0x1a1a1a);
-  }
-  return B.geometry();
-}
 function farGeo() {
   const B = new Builder();
-  B.box(0, 0.9, 0, 0.7, 1.8, 0.45, 0xffffff);
-  B.box(0, 2.0, 0, 0.5, 0.45, 0.5, 0xd8d8d8);
-  B.box(0.55, 1.6, 0, 0.06, 2.6, 0.06, 0xa0a0a0);
+  B.box(0, 0.9, 0, 0.62, 1.8, 0.4, 0xffffff);
+  B.sphere(0, 2.0, 0, 0.26, 0xd8d8d8, 1, 1.1, 1);
+  B.box(0.5, 1.6, 0, 0.06, 2.6, 0.06, 0xa0a0a0);
   return B.geometry();
-}
-function bodyGeo() {
-  const B = new Builder();
-  corpse(B, 0, 0, 0, { cloth: 0x7a1414, armor: 0x3a3a44, pants: 0x2a2622, hair: 0x2a2a30 });
-  // 原点の高さを0に（groundAtの分をもどす）
-  const g = B.geometry();
-  g.translate(0, -groundAt(0, 0), 0);
-  return g;
 }
 
 const ARMY = {
   units: [], groups: [], kills: 0, zoneKills: {},
-  cap: IS_TOUCH ? 900 : 1600, farCap: IS_TOUCH ? 2500 : 4200
+  cap: IS_TOUCH ? 700 : 1400, farCap: IS_TOUCH ? 2500 : 4200, near: IS_TOUCH ? 60 : 80
 };
 const _am = new THREE.Matrix4(), _aq = new THREE.Quaternion(), _ae = new THREE.Euler(), _ap = new THREE.Vector3(), _as = new THREE.Vector3(), _ac = new THREE.Color();
 
-function armyMat() { return new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, flatShading: true }); }
+const GORE_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.03 });
 function initArmyMeshes() {
-  const mk = (geo, n) => {
-    const m = new THREE.InstancedMesh(geo, armyMat(), n);
+  const mk = (geo, n, mat) => {
+    const m = new THREE.InstancedMesh(geo, mat, n);
     m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     // 色の配列は count の数で作られるので、count を 0 にする前に全員ぶん白で埋める
     _ac.setRGB(1, 1, 1);
@@ -219,43 +217,59 @@ function initArmyMeshes() {
     scene.add(m);
     return m;
   };
-  ARMY.mMelee = mk(soldierGeo('soldier'), ARMY.cap);
-  ARMY.mArcher = mk(soldierGeo('archer'), Math.floor(ARMY.cap / 3));
-  ARMY.mAlly = mk(soldierGeo('ally'), 300);
-  ARMY.mFar = mk(farGeo(), ARMY.farCap);
+  // 動く兵（手足は頂点シェーダで振る）
+  const crowd = (kind, n) => {
+    const geo = crowdGeometry(kind).geometry(false);
+    const anim = new THREE.InstancedBufferAttribute(new Float32Array(n * 2), 2);
+    anim.setUsage(THREE.DynamicDrawUsage);
+    geo.setAttribute('anim', anim);
+    const m = mk(geo, n, crowdMaterial());
+    m.anim = anim;
+    return m;
+  };
+  ARMY.mMelee = crowd('soldier', ARMY.cap);
+  ARMY.mHeavy = crowd('heavy', Math.floor(ARMY.cap / 3));
+  ARMY.mArcher = crowd('archer', Math.floor(ARMY.cap / 3));
+  ARMY.mAlly = crowd('ally', 300);
+  ARMY.mFar = mk(farGeo(), ARMY.farCap, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 }));
   ARMY.mFar.castShadow = false;
-  // 亡骸（古いものから使い回す）
-  ARMY.corpseCap = IS_TOUCH ? 1500 : 3000;
-  ARMY.mCorpse = mk(bodyGeo(), ARMY.corpseCap);
-  ARMY.mCorpse.castShadow = false;
-  ARMY.corpseN = 0; ARMY.corpseI = 0;
+  // 亡骸（型ごと。古いものから使い回す）
+  ARMY.corpseCap = IS_TOUCH ? 500 : 1000;
+  ARMY.corpses = [0, 1, 2, 3, 4].map(v => { const m = mk(corpseGeometry('soldier', v), ARMY.corpseCap, GORE_MAT); m.castShadow = false; m.receiveShadow = true; return { m, n: 0, i: 0 }; });
   // 血の跡
-  ARMY.decalCap = IS_TOUCH ? 1200 : 2400;
+  ARMY.decalCap = IS_TOUCH ? 1600 : 3200;
   const dg = new THREE.PlaneGeometry(1, 1); dg.rotateX(-Math.PI / 2);
   ARMY.mDecal = new THREE.InstancedMesh(dg, new THREE.MeshBasicMaterial({ map: bloodTex, transparent: true, depthWrite: false,
     polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), ARMY.decalCap);
   ARMY.mDecal.count = 0; ARMY.mDecal.frustumCulled = false; ARMY.mDecal.renderOrder = 2;
   scene.add(ARMY.mDecal);
   ARMY.decalN = 0; ARMY.decalI = 0;
-  // 吹き飛ぶ体・ちぎれた手足
+  // 吹き飛ぶ体・ちぎれた首や手足
   ARMY.flyers = [];
-  ARMY.mFly = mk(bodyGeo(), 160);
-  const lg = new THREE.BoxGeometry(0.22, 0.22, 0.8);
-  ARMY.mLimb = new THREE.InstancedMesh(lg, new THREE.MeshStandardMaterial({ color: 0x6a1a14, roughness: 0.8 }), 200);
-  ARMY.mLimb.count = 0; ARMY.mLimb.frustumCulled = false; scene.add(ARMY.mLimb);
+  ARMY.mFly = mk(crowdGeometry('soldier').geometry(false), 160, GORE_MAT);
+  ARMY.gibMesh = {};
+  for (const w of ['head', 'arm', 'leg', 'upper']) ARMY.gibMesh[w] = mk(gibGeometry('soldier', w), 180, GORE_MAT);
   ARMY.limbs = [];
+  ARMY.founts = [];
 }
 
-function addCorpse(x, z, ry, tint, crushed) {
-  const i = ARMY.corpseI; ARMY.corpseI = (ARMY.corpseI + 1) % ARMY.corpseCap;
-  ARMY.corpseN = Math.min(ARMY.corpseCap, ARMY.corpseN + 1);
+function addCorpse(x, z, ry, tint, crushed, variant = 0) {
+  const C = ARMY.corpses[variant];
+  const i = C.i; C.i = (C.i + 1) % ARMY.corpseCap;
+  C.n = Math.min(ARMY.corpseCap, C.n + 1);
   _e.set(0, ry, 0); _aq.setFromEuler(_e);
-  _am.compose(_ap.set(x, groundAt(x, z) + 0.02, z), _aq, _as.set(1, crushed ? 0.35 : 1, 1));
-  ARMY.mCorpse.setMatrixAt(i, _am);
-  ARMY.mCorpse.setColorAt(i, _ac.setHex(tint || 0xffffff));
-  ARMY.mCorpse.count = ARMY.corpseN;
-  ARMY.mCorpse.instanceMatrix.needsUpdate = true;
-  ARMY.mCorpse.instanceColor.needsUpdate = true;
+  const s = BODY_SCALE;
+  _am.compose(_ap.set(x, groundAt(x, z) + 0.02, z), _aq, _as.set(s, crushed ? s * 0.35 : s, s));
+  C.m.setMatrixAt(i, _am);
+  C.m.setColorAt(i, _ac.setHex(tint || 0xffffff));
+  C.m.count = C.n;
+  C.m.instanceMatrix.needsUpdate = true;
+  C.m.instanceColor.needsUpdate = true;
+}
+function clearCorpses() {
+  for (const C of ARMY.corpses) { C.n = 0; C.i = 0; C.m.count = 0; }
+  ARMY.mDecal.count = 0; ARMY.decalN = 0;
+  ARMY.limbs.length = 0;
 }
 function addBloodDecal(x, z, size) {
   const i = ARMY.decalI; ARMY.decalI = (ARMY.decalI + 1) % ARMY.decalCap;
@@ -266,18 +280,43 @@ function addBloodDecal(x, z, size) {
   ARMY.mDecal.count = ARMY.decalN;
   ARMY.mDecal.instanceMatrix.needsUpdate = true;
 }
-function bloodSpray(x, y, z, n, speed) {
-  spray(PS, n, x, y, z, { speed, up: speed * 0.4, life: 0.8, size: 0.12, c0: 0x9a0a0a, c1: 0x4a0404, alpha: 0.95, grav: 11, drag: 0.8, cap: 40 });
+/* ---------- 血しぶき（とがった粒で） ---------- */
+const bloodDropTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 32;
+  const g = c.getContext('2d');
+  const gr = g.createRadialGradient(16, 16, 2, 16, 16, 15);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.6, 'rgba(255,255,255,0.95)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.beginPath(); g.arc(16, 16, 15, 0, 7); g.fill();
+  return new THREE.CanvasTexture(c);
+})();
+const PB = new Particles(IS_TOUCH ? 2200 : 4000, THREE.NormalBlending, bloodDropTex, 10);
+function bloodSpray(x, y, z, n, speed, dirx = 0, dirz = 0) {
+  n = Math.min(n, 60);
+  for (let k = 0; k < n; k++) {
+    const a = Math.random() * 6.28, u = Math.random();
+    const sp = speed * (0.3 + Math.random() * 0.9);
+    PB.spawn(x, y, z, Math.cos(a) * sp * (1 - u * 0.5) + dirx * speed * 0.6, sp * (0.4 + u * 0.8), Math.sin(a) * sp * (1 - u * 0.5) + dirz * speed * 0.6,
+      0.6 + Math.random() * 0.7, 0.05 + Math.random() * 0.1, 0xa00a0a, 0x4a0204, 0.95, 12, 0.3, 0.02);
+  }
+  // 血の霧
+  if (n > 8) PS.spawn(x, y, z, 0, 0.3, 0, 0.9, 0.5 + n * 0.02, 0x8a0a0a, 0x4a0404, 0.35, -0.2, 1.5, 1.2, 1);
 }
-function launchFlyer(x, y, z, vx, vy, vz, tint, ry) {
+function launchFlyer(x, y, z, vx, vy, vz, tint, ry, headless) {
   if (ARMY.flyers.length >= 160) return false;
-  ARMY.flyers.push({ x, y, z, vx, vy, vz, rx: 0, ry, rz: 0, sx: (Math.random() - 0.5) * 8, sz: (Math.random() - 0.5) * 8, tint });
+  ARMY.flyers.push({ x, y, z, vx, vy, vz, rx: 0, ry, rz: 0, sx: (Math.random() - 0.5) * 8, sz: (Math.random() - 0.5) * 8, tint, headless });
   return true;
 }
-function launchLimb(x, y, z, speed) {
-  if (ARMY.limbs.length >= 200) return;
+// ちぎれた部位を飛ばす（which: head / arm / leg / upper）
+function launchLimb(x, y, z, speed, which = 'arm', dirx = 0, dirz = 0, tint = 0xffffff) {
+  if (ARMY.limbs.length >= 400) ARMY.limbs.shift();
   const a = Math.random() * 6.28;
-  ARMY.limbs.push({ x, y, z, vx: Math.cos(a) * speed, vy: speed * 0.8 + 3, vz: Math.sin(a) * speed, r: 0, sr: (Math.random() - 0.5) * 14, ry: a, life: 12 });
+  ARMY.limbs.push({ which, x, y, z, vx: Math.cos(a) * speed * 0.6 + dirx * speed, vy: speed * 0.7 + 3 + Math.random() * 3, vz: Math.sin(a) * speed * 0.6 + dirz * speed,
+    rx: Math.random() * 6, ry: a, rz: 0, sx: (Math.random() - 0.5) * 16, sz: (Math.random() - 0.5) * 16, life: 40, rest: false, bounced: false, tint });
+}
+// 首や手足を失った切り口から吹き出す血
+function bloodFountain(x, y, z, dirx, dirz, t = 1.6) {
+  if (ARMY.founts.length > 40) ARMY.founts.shift();
+  ARMY.founts.push({ x, y, z, dx: dirx, dz: dirz, t, max: t });
 }
 
 /* ---------- 部隊を置く ---------- */
@@ -317,7 +356,7 @@ const _hash = new Map();
 function updateArmy(dt, t) {
   const px = player.pos.x, pz = player.pos.z;
   const inD = GAME.inDungeon;
-  let nMelee = 0, nArcher = 0, nAlly = 0, nFar = 0;
+  let nMelee = 0, nArcher = 0, nAlly = 0, nFar = 0, nHeavy = 0;
   const active = [];
   _hash.clear();
   let shooters = 0;
@@ -359,7 +398,7 @@ function updateArmy(dt, t) {
               u.atk = K.cd * (0.8 + Math.random() * 0.6);
               enemyShot(new THREE.Vector3(u.x, u.y + 1.6, u.z), new THREE.Vector3(px, player.pos.y + 1, pz), 30, K.atk, 0xd8c8a0, 0.18, { pos: u });
             }
-          } else if (u.d < K.reach + 0.6) {
+          } else if (u.d < K.reach + 0.6 && player.pos.y - u.y < 2.6) {
             u.atk = K.cd * (0.8 + Math.random() * 0.4);
             u.lean = 0.5;
             damagePlayer(K.atk, { pos: u });
@@ -393,28 +432,30 @@ function updateArmy(dt, t) {
     u.lean = Math.max(0, u.lean - dt * 1.5);
     // 描画
     if (u.d > 430) continue;
-    const bob = u.moving ? Math.abs(Math.sin(u.phase * 9)) * 0.08 : Math.sin(u.phase * 1.3) * 0.01;
-    const sc = K.scale || 1;
+    if (u.moving) u.walk = (u.walk || 0) + dt * K.speed * 2.1 * u.moving;
+    const bob = u.moving ? Math.abs(Math.sin(u.walk)) * 0.05 : 0;
+    const near = u.d < ARMY.near;
+    const sc = (K.scale || 1) * (near ? BODY_SCALE : 1);
     _e.set(-u.lean, u.face, 0, 'YXZ'); _aq.setFromEuler(_e);
     _am.compose(_ap.set(u.x, u.y + bob, u.z), _aq, _as.set(sc, sc, sc));
-    if (u.d < 75) {
-      if (u.kind === 'ally') { if (nAlly < 300) ARMY.mAlly.setMatrixAt(nAlly++, _am); }
-      else if (u.kind === 'archer') { if (nArcher < ARMY.mArcher.instanceMatrix.count) ARMY.mArcher.setMatrixAt(nArcher++, _am); }
-      else if (nMelee < ARMY.cap) {
-        ARMY.mMelee.setMatrixAt(nMelee, _am);
-        ARMY.mMelee.setColorAt(nMelee, _ac.setHex(u.kind === 'heavy' ? 0x9a9aa8 : 0xffffff));
-        nMelee++;
-      }
+    if (near) {
+      let m = null, i = 0;
+      if (u.kind === 'ally') { if (nAlly < 300) { m = ARMY.mAlly; i = nAlly++; } }
+      else if (u.kind === 'archer') { if (nArcher < ARMY.mArcher.instanceMatrix.count) { m = ARMY.mArcher; i = nArcher++; } }
+      else if (u.kind === 'heavy') { if (nHeavy < ARMY.mHeavy.instanceMatrix.count) { m = ARMY.mHeavy; i = nHeavy++; } }
+      else if (nMelee < ARMY.cap) { m = ARMY.mMelee; i = nMelee++; }
+      if (m) { m.setMatrixAt(i, _am); m.anim.setXY(i, u.walk || 0, Math.min(1, u.moving * 1.2)); }
     } else if (nFar < ARMY.farCap) {
       ARMY.mFar.setMatrixAt(nFar, _am);
       ARMY.mFar.setColorAt(nFar, _ac.setHex(u.kind === 'ally' ? 0x3a5aa0 : 0x6a1a1a));
       nFar++;
     }
   }
-  for (const [m, n] of [[ARMY.mMelee, nMelee], [ARMY.mArcher, nArcher], [ARMY.mAlly, nAlly], [ARMY.mFar, nFar]]) {
+  for (const [m, n] of [[ARMY.mMelee, nMelee], [ARMY.mHeavy, nHeavy], [ARMY.mArcher, nArcher], [ARMY.mAlly, nAlly], [ARMY.mFar, nFar]]) {
     m.count = n;
     m.instanceMatrix.needsUpdate = true;
     if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    if (m.anim) m.anim.needsUpdate = true;
   }
   updateFlyers(dt);
 }
@@ -433,21 +474,23 @@ function nearestFoe(u, R) {
 }
 function updateFlyers(dt) {
   let n = 0;
+  const S = BODY_SCALE;
   for (let i = ARMY.flyers.length - 1; i >= 0; i--) {
     const f = ARMY.flyers[i];
     f.vy -= 22 * dt;
     f.x += f.vx * dt; f.y += f.vy * dt; f.z += f.vz * dt;
     f.rx += f.sx * dt; f.rz += f.sz * dt;
-    if (Math.random() < 0.3) PS.spawn(f.x, f.y + 0.3, f.z, 0, 0, 0, 0.6, 0.12, 0x8a0808, 0x3a0202, 0.9, 8, 0);
+    if (Math.random() < 0.6) PB.spawn(f.x, f.y + 1, f.z, (Math.random() - 0.5), 0.5, (Math.random() - 0.5), 0.7, 0.08, 0xa00a0a, 0x4a0204, 0.95, 10, 0.2);
     const gy = groundAt(f.x, f.z);
     if (f.y <= gy && f.vy < 0) {
-      addCorpse(f.x, f.z, f.ry, f.tint);
-      addBloodDecal(f.x, f.z, 1.6 + Math.random());
+      addCorpse(f.x, f.z, f.ry, f.tint, false, f.headless ? 1 : (Math.random() < 0.5 ? 0 : 4));
+      addBloodDecal(f.x, f.z, 1.8 + Math.random() * 1.2);
+      bloodSpray(f.x, gy + 0.3, f.z, 14, 3);
       ARMY.flyers.splice(i, 1);
       continue;
     }
     _e.set(f.rx, f.ry, f.rz); _aq.setFromEuler(_e);
-    _am.compose(_ap.set(f.x, f.y, f.z), _aq, _as.set(1, 1, 1));
+    _am.compose(_ap.set(f.x, f.y, f.z), _aq, _as.set(S, S, S));
     ARMY.mFly.setMatrixAt(n, _am);
     ARMY.mFly.setColorAt(n, _ac.setHex(f.tint || 0xffffff));
     n++;
@@ -455,23 +498,48 @@ function updateFlyers(dt) {
   ARMY.mFly.count = n;
   ARMY.mFly.instanceMatrix.needsUpdate = true;
   if (ARMY.mFly.instanceColor) ARMY.mFly.instanceColor.needsUpdate = true;
-  let m = 0;
+  // ちぎれた首・手足
+  const cnt = { head: 0, arm: 0, leg: 0, upper: 0 };
   for (let i = ARMY.limbs.length - 1; i >= 0; i--) {
     const l = ARMY.limbs[i];
     l.life -= dt;
     if (l.life <= 0) { ARMY.limbs.splice(i, 1); continue; }
-    const gy = groundAt(l.x, l.z);
-    if (l.y > gy + 0.1 || l.vy > 0) {
-      l.vy -= 22 * dt; l.x += l.vx * dt; l.y += l.vy * dt; l.z += l.vz * dt; l.r += l.sr * dt;
-      if (Math.random() < 0.4) PS.spawn(l.x, l.y, l.z, 0, 0, 0, 0.5, 0.08, 0x8a0808, 0x3a0202, 0.9, 8, 0);
-      if (l.y <= gy + 0.1 && l.vy < 0) { l.y = gy + 0.11; l.vy = 0; l.vx = l.vz = 0; addBloodDecal(l.x, l.z, 0.7); }
+    if (!l.rest) {
+      l.vy -= 22 * dt; l.x += l.vx * dt; l.y += l.vy * dt; l.z += l.vz * dt;
+      l.rx += l.sx * dt; l.rz += l.sz * dt;
+      // 血の尾を引いて飛ぶ
+      if (Math.random() < 0.85) PB.spawn(l.x, l.y, l.z, (Math.random() - 0.5) * 0.6, 0.2, (Math.random() - 0.5) * 0.6, 0.6, 0.06 + Math.random() * 0.05, 0xa00a0a, 0x4a0204, 0.95, 9, 0.2);
+      const gy = groundAt(l.x, l.z) + 0.1;
+      if (l.y <= gy && l.vy < 0) {
+        l.y = gy;
+        addBloodDecal(l.x, l.z, 0.6 + Math.random() * 0.6);
+        if (!l.bounced && l.vy < -5) { l.bounced = true; l.vy *= -0.3; l.vx *= 0.5; l.vz *= 0.5; l.sx *= 0.5; l.sz *= 0.5; bloodSpray(l.x, gy, l.z, 5, 2); }
+        else { l.rest = true; l.rx = Math.PI / 2 * (l.which === 'head' ? 0.3 : 1); l.rz = (Math.random() - 0.5) * 0.4; }
+      }
     }
-    _e.set(0, l.ry, l.r); _aq.setFromEuler(_e);
-    _am.compose(_ap.set(l.x, l.y, l.z), _aq, _as.set(1, 1, 1));
-    ARMY.mLimb.setMatrixAt(m++, _am);
+    const M = ARMY.gibMesh[l.which];
+    const k = cnt[l.which]++;
+    if (k >= 180) continue;
+    _e.set(l.rx, l.ry, l.rz); _aq.setFromEuler(_e);
+    _am.compose(_ap.set(l.x, l.y, l.z), _aq, _as.set(S, S, S));
+    M.setMatrixAt(k, _am);
+    M.setColorAt(k, _ac.setHex(l.tint));
   }
-  ARMY.mLimb.count = m;
-  ARMY.mLimb.instanceMatrix.needsUpdate = true;
+  for (const [w, M] of Object.entries(ARMY.gibMesh)) {
+    M.count = Math.min(180, cnt[w]);
+    M.instanceMatrix.needsUpdate = true;
+    if (M.instanceColor) M.instanceColor.needsUpdate = true;
+  }
+  // 切り口から噴き出す血
+  for (let i = ARMY.founts.length - 1; i >= 0; i--) {
+    const f = ARMY.founts[i];
+    f.t -= dt;
+    if (f.t <= 0) { ARMY.founts.splice(i, 1); continue; }
+    const k = f.t / f.max;
+    for (let j = 0; j < 3; j++) PB.spawn(f.x, f.y, f.z, f.dx * 2.5 * k + (Math.random() - 0.5) * 0.8, 2.5 + 3.5 * k * Math.random(), f.dz * 2.5 * k + (Math.random() - 0.5) * 0.8,
+      0.7, 0.05 + Math.random() * 0.06, 0xb00c0c, 0x4a0204, 0.95, 10, 0.1);
+    if (Math.random() < dt * 4) addBloodDecal(f.x + f.dx * 1.2 + (Math.random() - 0.5), f.z + f.dz * 1.2 + (Math.random() - 0.5), 0.5 + Math.random() * 0.5);
+  }
 }
 
 /* ---------- 魔法で薙ぎ払う（味方には決して当たらない） ---------- */
@@ -509,28 +577,65 @@ function killUnit(u, el, cx, cz, d, R, o) {
   u.alive = false;
   const zone = u.g.zone;
   ARMY.zoneKills[zone] = (ARMY.zoneKills[zone] || 0) + 1;
-  const near = u.d < 140;
-  const dx = u.x - cx, dz = u.z - cz, dd = Math.hypot(dx, dz) || 1;
-  let tint = 0xffffff, corpseLeft = true, crushed = false;
+  goreKill(u.x, u.y, u.z, u.face, el, cx, cz, d, R, o, u.d < 140);
+}
+// 人が魔法で死ぬ（焼け焦げ・凍って砕ける・押し潰される・首や手足がちぎれ飛ぶ）
+function goreKill(x, y, z, face, el, cx, cz, d, R, o = {}, near = true) {
+  const dx = x - cx, dz = z - cz, dd = Math.hypot(dx, dz) || 1;
+  const nx = dx / dd, nz = dz / dd;
+  let tint = 0xffffff, corpseLeft = true, crushed = false, variant = Math.random() < 0.5 ? 0 : 4;
+  const core = d < R * 0.45;      // 爆心に近い
   switch (el) {
-    case 'fire': case 'thunder': tint = 0x3a2e28; break;
-    case 'ice': tint = 0xa8d8ff; if (Math.random() < 0.4) { corpseLeft = false; if (near) spray(PS, 8, u.x, u.y + 1, u.z, { speed: 4, up: 3, life: 1, size: 0.18, c0: 0xdff4ff, c1: 0x9ad0f0, alpha: 0.95, grav: 12, cap: 12 }); } break;
-    case 'gravity': crushed = true; break;
-    case 'light': corpseLeft = false; if (near) spray(PS, 6, u.x, u.y + 1, u.z, { speed: 1, up: 2, life: 2, size: 0.4, grow: 0.5, c0: 0x6a6660, c1: 0xb8b4ae, alpha: 0.6, grav: -0.8, fade: 1, cap: 10 }); break;
-    case 'dark': corpseLeft = false; if (near) spray(PS, 6, u.x, u.y + 0.5, u.z, { speed: 1, life: 1.4, size: 0.5, grow: 0.3, c0: 0x2a0a3a, c1: 0x0a000a, alpha: 0.8, grav: 1.5, fade: 1, cap: 10 }); break;
+    case 'fire': tint = core ? 0x2a2420 : 0x6a5a50; break;
+    case 'thunder': tint = 0x3a3230; break;
+    case 'ice': tint = 0xa8d8ff; if (Math.random() < 0.4) { corpseLeft = false; if (near) spray(PS, 10, x, y + 1, z, { speed: 4, up: 3, life: 1.2, size: 0.2, c0: 0xdff4ff, c1: 0x9ad0f0, alpha: 0.95, grav: 12, cap: 12 }); } break;
+    case 'gravity': crushed = !core; if (core) variant = 3; break;
+    case 'light': corpseLeft = false; if (near) spray(PS, 6, x, y + 1, z, { speed: 1, up: 2, life: 2, size: 0.4, grow: 0.5, c0: 0x6a6660, c1: 0xb8b4ae, alpha: 0.6, grav: -0.8, fade: 1, cap: 10 }); break;
+    case 'dark': corpseLeft = false; if (near) spray(PS, 6, x, y + 0.5, z, { speed: 1, life: 1.4, size: 0.5, grow: 0.3, c0: 0x2a0a3a, c1: 0x0a000a, alpha: 0.8, grav: 1.5, fade: 1, cap: 10 }); break;
   }
   const bleeding = el !== 'light' && el !== 'dark' && !(el === 'ice' && !corpseLeft);
-  if (near && bleeding) bloodSpray(u.x, u.y + 1.2, u.z, 6, 4);
+  if (!near) {
+    if (corpseLeft) { addCorpse(x, z, face + (Math.random() - 0.5), tint, crushed, variant); if (bleeding) addBloodDecal(x, z, 1.4 + Math.random()); }
+    return;
+  }
+  if (bleeding) bloodSpray(x, y + 1.3, z, 16, 5, nx, nz);
+  const sp = 5 + Math.min(18, R * 0.35);
+  // ちぎれる：首・腕・脚
+  const tearing = { gravity: 0.7, wood: 0.65, water: 0.55, fire: 0.5, thunder: 0.35, ice: 0.3 }[el] || 0;
+  let headless = false;
+  if (bleeding && corpseLeft && Math.random() < tearing * (core ? 1.3 : 0.8)) {
+    const r = Math.random();
+    if (core && el !== 'ice' && r < 0.3) {
+      // 体が引き裂かれる：上半身だけが飛び、残りは肉塊に
+      launchLimb(x, y + 1.3, z, sp, 'upper', nx, nz, tint);
+      launchLimb(x, y + 0.6, z, sp * 0.8, 'leg', nx, nz, tint);
+      variant = -1;
+      bloodFountain(x, y + 0.9, z, nx, nz, 1.2);
+      addBloodDecal(x, z, 2.6 + Math.random());
+      for (let k = 0; k < 3; k++) addBloodDecal(x + nx * (k + 1) * 1.3 + (Math.random() - 0.5), z + nz * (k + 1) * 1.3 + (Math.random() - 0.5), 1 + Math.random());
+    } else if (r < 0.55) {
+      launchLimb(x, y + 1.95, z, sp * 1.2, 'head', nx, nz, tint);
+      headless = true; variant = 1;
+      bloodFountain(x, y + 0.3, z, nx, nz, 2.2);
+    } else {
+      launchLimb(x, y + 1.4, z, sp, 'arm', nx, nz, tint);
+      if (Math.random() < 0.6) launchLimb(x, y + 0.6, z, sp * 0.8, 'leg', -nz, nx, tint);
+      variant = 2;
+      bloodFountain(x, y + 0.3, z, nx, nz, 1.2);
+    }
+  }
   // 吹き飛ばす
   const fling = o.fling || o.push;
-  if (corpseLeft && fling && near && Math.random() < 0.5) {
+  if (corpseLeft && variant !== -1 && variant !== 3 && fling && Math.random() < 0.5) {
     const f = (o.push ? o.push.force : 1) * (8 + R * 0.4) * (1 - d / R * 0.5);
-    let vx = dx / dd * f, vz = dz / dd * f;
+    let vx = nx * f, vz = nz * f;
     if (o.push && o.push.dx !== undefined) { vx = o.push.dx * f; vz = o.push.dz * f; }
-    if (launchFlyer(u.x, u.y + 0.5, u.z, vx, 5 + Math.random() * f * 0.8, vz, tint, u.face)) corpseLeft = false;
+    if (launchFlyer(x, y + 0.5, z, vx, 5 + Math.random() * f * 0.8, vz, tint, face, headless)) corpseLeft = false;
   }
-  if (bleeding && near && Math.random() < (el === 'gravity' || el === 'wood' || el === 'water' ? 0.45 : 0.22)) launchLimb(u.x, u.y + 1.2, u.z, 3 + Math.random() * 5);
-  if (corpseLeft) { addCorpse(u.x, u.z, u.face + (Math.random() - 0.5), tint, crushed); if (bleeding) addBloodDecal(u.x, u.z, 1.4 + Math.random() * (crushed ? 2 : 1)); }
+  if (corpseLeft && variant >= 0) {
+    addCorpse(x, z, face + (Math.random() - 0.5), tint, crushed, variant);
+    if (bleeding) { addBloodDecal(x, z, 1.6 + Math.random() * (crushed || variant === 3 ? 2.2 : 1.2)); if (Math.random() < 0.5) addBloodDecal(x + (Math.random() - 0.5) * 2, z + (Math.random() - 0.5) * 2, 0.8 + Math.random()); }
+  } else if (variant === -1) addCorpse(x, z, face, tint, false, 3);
 }
 // 重力などで引き寄せる
 function pullArmy(x, z, R, strength, dt) {

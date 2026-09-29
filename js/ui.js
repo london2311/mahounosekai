@@ -36,6 +36,7 @@ function fadeOut(cb, hold = 350) {
 /* ---------- 会話 ---------- */
 function openDialog(lines, onEnd, choices) {
   cancelCast();
+  releaseAllInput();
   const el = $('dialog');
   UI.dialog = { lines, i: 0, onEnd, choices, typing: 0, full: '' };
   el.classList.add('show');
@@ -449,6 +450,13 @@ function updateHUD(dt) {
   } else ch.classList.remove('show');
 }
 
+function setFlyUI() {
+  const f = player && player.flying;
+  $('flyBtn').textContent = f ? '降りる' : '飛ぶ';
+  $('flyBtn').classList.toggle('on', !!f);
+  $('jumpBtn').textContent = f ? '上昇' : '跳ぶ';
+  document.body.classList.toggle('flying', !!f);
+}
 function setElementUI() {
   document.querySelectorAll('.elbtn').forEach(b => b.classList.toggle('on', b.dataset.el === STATE.element));
   const e = ELEM[STATE.element];

@@ -92,7 +92,8 @@ function buildEnemyModel(type, T) {
   const humanoid = (look, sc) => {
     const h = buildHumanoid(Object.assign(look, { mat, scale: sc }));
     model.add(h.root);
-    r.parts.legL = h.legL; r.parts.legR = h.legR;
+    r.parts.legL = h.legL; r.parts.legR = h.legR; r.parts.rig = h;
+    r.mat = h.mat;
     r.height = 2.2 * sc; r.radius = 0.5 * sc * (look.bulk || 1);
   };
   switch (T.model) {
@@ -186,7 +187,7 @@ function buildEnemyModel(type, T) {
     }
     case 'harpy': {
       const h = buildHumanoid({ skin: 0xe8c8a0, top: 0x8a6a4a, bottom: 0x8a6a4a, hairStyle: 'long', hair: 0x5a3a8a, eyeGlow: 0xffd84a, mat });
-      h.root.position.y = -1.2;
+      h.root.position.y = -1.2; r.mat = h.mat;
       model.add(h.root);
       const [wl, wr] = wingPair(0x8a6a9a, 2.0, 1.0);
       wl.position.set(0, 0.3, -0.2); wr.position.set(0, 0.3, -0.2);
@@ -319,7 +320,7 @@ function updateEnemies(dt, t) {
     const dist = Math.hypot(dx, dz);
     const sameWorld = en.dungeon === GAME.inDungeon;
     const near = sameWorld && dist < 230;
-    en.root.visible = near && dist < 200 && (en.alive || en.deathT < 1.2);
+    en.root.visible = near && dist < 200 && (en.alive || (en.deathT < 1.2 && !en.gibbed));
     en.active = near && en.alive;
     if (!near) {
       if (!en.alive && !en.noRespawn) { en.respawn -= dt; if (en.respawn <= 0) reviveEnemy(en); }
@@ -340,7 +341,7 @@ function updateEnemies(dt, t) {
 }
 
 function reviveEnemy(en) {
-  en.alive = true; en.hp = en.maxHp; en.deathT = 0; en.aggro = false; en.state = 'idle';
+  en.alive = true; en.hp = en.maxHp; en.deathT = 0; en.aggro = false; en.state = 'idle'; en.gibbed = false;
   en.burn = en.slow = en.freeze = en.stun = 0;
   en.pos.set(en.home.x, groundAt(en.home.x, en.home.z) + (en.T.fly || 0), en.home.z);
   en.model.rotation.set(0, 0, 0); en.model.position.set(0, 0, 0);
@@ -491,7 +492,17 @@ function animateEnemy(en, dt, t, speed, still) {
       m.rotation.x = -wind * 0.25;
       break;
   }
-  if (p.legL) {
+  if (p.rig) {
+    animateWalk(p.rig, en.phase * 2.2, Math.min(1.1, speed / 3), t);
+    const b = p.rig.rig.bones;
+    // 構え・振りかぶり・嬲る腕
+    const tor = en.tormentT > 0 ? Math.sin(en.tormentT / 0.35 * Math.PI) : 0;
+    const swing = Math.max(wind, tor);
+    b.uArmR.rotation.x = lerp(b.uArmR.rotation.x, -2.6, swing); b.fArmR.rotation.x = lerp(b.fArmR.rotation.x, -0.5, swing);
+    if (en.aggro && !wind) { b.uArmR.rotation.x = -0.7; b.fArmR.rotation.x = -0.9; }
+    b.chest.rotation.x += -wind * 0.25 + tor * 0.35;
+    m.rotation.x = 0;
+  } else if (p.legL) {
     const sw = Math.sin(en.phase * 2.2) * 0.8 * Math.min(1, speed / 3);
     p.legL.rotation.x = sw; p.legR.rotation.x = -sw;
     m.rotation.x = -wind * 0.3 + (en.tormentT > 0 ? 0.45 * Math.sin(en.tormentT / 0.35 * Math.PI) : 0);
@@ -527,10 +538,11 @@ function enemyAttack(en, dist) {
     dustImpact(new THREE.Vector3(en.pos.x, groundAt(en.pos.x, en.pos.z) + 0.5, en.pos.z), R);
     shakeCamera(0.45);
     SOUND.boom(3);
-    if (dist < R + 0.5) damagePlayer(T.atk * 1.4, en);
+    if (dist < R + 0.5 && player.pos.y - groundAt(player.pos.x, player.pos.z) < 3) damagePlayer(T.atk * 1.4, en);
     return;
   }
-  if (dist < T.reach + en.radius * 0.3 + 1.0) damagePlayer(T.atk, en);
+  const dy = Math.abs(player.pos.y - en.pos.y);
+  if (dist < T.reach + en.radius * 0.3 + 1.0 && dy < 2.5 + en.height * 0.5) damagePlayer(T.atk, en);
   const [fx, fz] = rotXZ(0, en.radius + 0.6, en.facing);
   burst(en.pos.x + fx, en.pos.y + en.height * 0.5, en.pos.z + fz, 8, 3, 0.25, 0.25, 0xffffff);
 }
@@ -545,6 +557,8 @@ function damageEnemy(en, amount, elem, from, isDot) {
   if (elem && en.T.weak === elem) { mult = 1.6; tag = 'weak'; }
   else if (elem && en.T.resist === elem) { mult = 0.5; tag = 'resist'; }
   const dmg = Math.max(1, Math.round(amount * mult * (isDot ? 1 : 0.9 + Math.random() * 0.2)));
+  if (elem) en.lastEl = elem;
+  if (from) en.lastFrom = { x: from.x, z: from.z };
   en.hp -= dmg;
   en.aggro = true;
   if (en.state === 'idle' || en.state === 'return') en.state = 'chase';
@@ -573,6 +587,20 @@ function killEnemy(en) {
   if (FOCUS.target === en) { FOCUS.target = null; FOCUS.manual = false; FOCUS.timer = 0.15; }
   burst(en.pos.x, en.pos.y + en.height * 0.5, en.pos.z, 30 + en.radius * 20, 4 + en.radius * 2, 0.8, 0.4 + en.radius * 0.2, 0xfff0c0, 1);
   const T = en.T;
+  // 人は魔法で無残に死ぬ
+  if (T.human && !en.dungeon) {
+    const f = en.lastFrom || { x: player.pos.x, z: player.pos.z };
+    const d = Math.hypot(en.pos.x - f.x, en.pos.z - f.z);
+    if (!T.boss) {
+      en.gibbed = true; en.root.visible = false;
+      goreKill(en.pos.x, en.pos.y, en.pos.z, en.facing, en.lastEl || 'fire', f.x, f.z, Math.min(d, 6), 10, { fling: true }, true);
+    } else {
+      const s = T.general !== undefined || en.type === 'zenon' ? 2 : 1;
+      bloodSpray(en.pos.x, en.pos.y + en.height * 0.6, en.pos.z, 50, 7);
+      for (let k = 0; k < 6 * s; k++) addBloodDecal(en.pos.x + (Math.random() - 0.5) * 5, en.pos.z + (Math.random() - 0.5) * 5, 1.5 + Math.random() * 2.5);
+      bloodFountain(en.pos.x, en.pos.y + en.height * 0.7, en.pos.z, 0, 0, 3);
+    }
+  }
   gainExp(T.exp);
   STATE.gold += T.gold;
   toast(`${T.name}を倒した！  ＋${fmt(T.exp)} EXP  ＋${fmt(T.gold)} G`, 'kill');

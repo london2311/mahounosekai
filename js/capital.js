@@ -273,7 +273,7 @@ function buildCapital() {
   scene.add(siege);
   const decals = D.mesh();
   scene.add(decals);
-  CAP.siegeMeshes.push(siege, decals);
+  CAP.siegeMeshes.push(siege, decals, ...flushStaticCorpses());
 
   /* ---- 遠くから見える煙の柱 ---- */
   for (let k = 0; k < 12; k++) {
@@ -371,9 +371,9 @@ function spawnCapitalForces() {
   // 避難部屋の扉を破ろうとする兵
   for (let k = 0; k < 3; k++) { const [x, z] = castleCell(1.5 + k, 5.5); makeEnemy('imp_soldier', x, z, { zone: 'castle', noRespawn: true }); }
   // 中庭：味方の最後の守り（側近と精鋭）と、押し寄せる帝国兵
-  addGroup({ zone: 'courtyard_ally', ally: true, x: W(0, -100)[0], z: W(0, -100)[1], cols: 14, rows: 3, gap: 2.4, face: Math.PI });
-  addGroup({ zone: 'courtyard', x: W(0, -82)[0], z: W(0, -82)[1], cols: 24, rows: 5, gap: 1.9, face: 0, scatter: 1.2, kinds: { soldier: 0.8, heavy: 0.2 } });
-  addGroup({ zone: 'courtyard', x: W(0, -58)[0], z: W(0, -58)[1], cols: 8, rows: 10, gap: 2.0, face: 0, scatter: 1.5, kinds: { soldier: 0.7, heavy: 0.15, archer: 0.15 } });
+  addGroup({ zone: 'courtyard_ally', ally: true, x: W(0, -100)[0], z: W(0, -100)[1], cols: 14, rows: 3, gap: 2.4, face: 0 });
+  addGroup({ zone: 'courtyard', x: W(0, -82)[0], z: W(0, -82)[1], cols: 24, rows: 5, gap: 1.9, face: Math.PI, scatter: 1.2, kinds: { soldier: 0.8, heavy: 0.2 } });
+  addGroup({ zone: 'courtyard', x: W(0, -58)[0], z: W(0, -58)[1], cols: 8, rows: 10, gap: 2.0, face: Math.PI, scatter: 1.5, kinds: { soldier: 0.7, heavy: 0.15, archer: 0.15 } });
   // 城下町：うろつく兵の群れ
   const cityCheck = (x, z) => roadClear(x, z, 2) || true;
   for (let k = 0; k < 16; k++) {
@@ -431,10 +431,9 @@ function spawnCaptives() {
     const [kind, over] = c.look;
     const m = buildHumanoid(lookFor(kind, c.id, Object.assign({ blood: true }, over)));
     const gy = groundAt(x, z);
-    // ひざまずかされ、縛られている
-    m.legL.rotation.x = m.legR.rotation.x = 1.45;
-    m.root.position.set(x, gy - 0.62, z);
-    m.model.rotation.x = 0.35;
+    // ひざまずかされ、後ろ手に縛られている
+    setRigPose(m, 'captive');
+    m.root.position.set(x, gy, z);
     scene.add(m.root);
     const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 3, 6), new THREE.MeshStandardMaterial({ color: 0x3a2a1a, flatShading: true }));
     post.position.set(x, gy + 1.5, z - 0.5);
@@ -531,7 +530,7 @@ function updateCapital(dt, t) {
     const free = captiveFree(s);
     if (free && !s.freed) { s.freed = true; const it = INTERACT.find(o => o.ref === s); if (it) it.hidden = false; }
     if (d > 60 || GAME.inDungeon) { hideBubble(s); continue; }
-    s.m.model.rotation.z = Math.sin(t * 7) * 0.02 * (free ? 0.2 : 1);
+    s.m.rig.bones.chest.rotation.z = Math.sin(t * 7) * 0.03 * (free ? 0.2 : 1);
     if (!free) {
       s.hitT -= dt;
       const tormentor = s.captors.find(e => e.alive && !e.aggro) || (s.c.general ? ENEMIES.find(e => e.type === 'g10' && e.alive && !e.aggro) : null);
@@ -540,11 +539,12 @@ function updateCapital(dt, t) {
         tormentor.facing = Math.atan2(s.x - tormentor.pos.x, s.z - tormentor.pos.z);
         tormentor.tormentT = 0.35;
         bloodSpray(s.x, s.gy + 1.1, s.z, 6, 2.5);
-        s.m.model.rotation.x = 0.7;
+        s.m.rig.bones.chest.rotation.x = 0.7; s.m.rig.bones.head.rotation.x = 0.9;
         if (d < 30) SOUND.hit();
         if (Math.random() < 0.3) addBloodDecal(s.x + (Math.random() - 0.5) * 1.5, s.z + (Math.random() - 0.5) * 1.5, 0.6 + Math.random() * 0.6);
       }
-      s.m.model.rotation.x = lerp(s.m.model.rotation.x, 0.35, Math.min(1, dt * 3));
+      s.m.rig.bones.chest.rotation.x = lerp(s.m.rig.bones.chest.rotation.x, 0.25, Math.min(1, dt * 3));
+      s.m.rig.bones.head.rotation.x = lerp(s.m.rig.bones.head.rotation.x, 0.55, Math.min(1, dt * 2));
       s.bubbleT -= dt;
       if (s.bubbleT <= 0 && d < 40) {
         s.bubbleT = 2.8 + Math.random() * 2;
@@ -563,7 +563,7 @@ function setCapitalLiberated(on) {
     removeColliders(CAP.barricade);
     for (const s of CAP.scenes) { s.m.root.visible = false; s.post.visible = false; hideBubble(s); s.rescued = true; }
     for (const col of CAP.smoke) col.sprites.forEach(sp => { sp.visible = false; });
-    ARMY.mCorpse.count = 0; ARMY.corpseN = 0; ARMY.mDecal.count = 0; ARMY.decalN = 0;
+    clearCorpses();
   }
 }
 
