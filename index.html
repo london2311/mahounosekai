@@ -150,6 +150,9 @@
   #cutbars.on::before, #cutbars.on::after { transform: none; }
   body.cut #ui, body.cut #reticle, body.cut #crosshair { opacity: 0; pointer-events: none; }
   #dialog, #banner { z-index: 50; }
+  /* 演出中は黒い帯の上に会話を出す */
+  body.talking #actions, body.talking #focusBtn, body.talking #talkBtn, body.talking #quest, body.talking #help, body.talking #target { opacity: 0; pointer-events: none; }
+  body.cut #dialog { bottom: calc(9vh + 10px + env(safe-area-inset-bottom, 0px)); }
   #killcount { font-size: 11px; color: #ffb09a; margin-top: 2px; }
   .advisory { margin: 10px auto 0; max-width: 560px; font-size: 12px; line-height: 1.6; color: #ffc8b8; border: 1px solid rgba(255,140,120,0.6); border-radius: 8px; padding: 8px 12px; background: rgba(60,10,10,0.5); }
   .elbtn.on { background: var(--c); box-shadow: 0 0 16px var(--c); transform: scale(1.1); }
@@ -227,7 +230,7 @@
 
   /* 会話 */
   #dialog { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(720px, calc(100vw - 24px));
-    box-sizing: border-box; background: rgba(250,246,236,0.96); border: 3px solid #5a3a22; border-radius: 14px; padding: 12px 16px 14px; display: none; z-index: 30;
+    box-sizing: border-box; background: rgba(250,246,236,0.96); border: 3px solid #5a3a22; border-radius: 14px; padding: 12px 16px 14px; display: none; z-index: 50;
     box-shadow: 0 6px 30px rgba(0,0,0,0.4); cursor: pointer; }
   #dialog.show { display: block; }
   #dialog .head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
@@ -298,7 +301,7 @@
     #questToggle { font-size: 11px; }
     #minimap { width: 104px; height: 104px; }
     .topbtns button { padding: 5px 9px; font-size: 11px; }
-    #target { top: calc(112px + env(safe-area-inset-top, 0px)); width: 56vw; font-size: 11px; }
+    #target { top: calc(162px + env(safe-area-inset-top, 0px)); width: 56vw; font-size: 11px; }
     .elbtn { width: 44px; height: 44px; font-size: 15px; }
     #castBtn { width: 82px; height: 82px; }
     .elgrid .elbtn { width: 38px; height: 38px; font-size: 13px; }

@@ -39,6 +39,7 @@ function openDialog(lines, onEnd, choices) {
   const el = $('dialog');
   UI.dialog = { lines, i: 0, onEnd, choices, typing: 0, full: '' };
   el.classList.add('show');
+  document.body.classList.add('talking');
   GAME.paused = true;
   setInteractHint(null);
   showLine();
@@ -95,6 +96,7 @@ function advanceDialog() {
 function closeDialog() {
   UI.dialog = null;
   $('dialog').classList.remove('show');
+  document.body.classList.remove('talking');
   GAME.paused = !!UI.modal;
 }
 
