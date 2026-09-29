@@ -233,15 +233,108 @@ function updateCharge(dt) {
   // 向き
   const tgt = FOCUS.target;
   if (tgt) { player.faceTo = Math.atan2(tgt.pos.x - player.pos.x, tgt.pos.z - player.pos.z); player.faceTimer = 0.3; }
-  else { player.faceTo = cam.yaw + Math.PI; player.faceTimer = 0.3; }
+  else { updateAim(); player.faceTo = Math.atan2(AIM.point.x - player.pos.x, AIM.point.z - player.pos.z); player.faceTimer = 0.3; }
 }
 
+/* =========================================================
+   狙い（魔法が当たる場所）
+   ========================================================= */
+const AIM_NDC_Y = 0.36;            // 画面の中心より少し上を狙う（主人公に重ならないように）
+const AIM = { point: new THREE.Vector3(), ground: new THREE.Vector3(), hit: false, hasTarget: false };
+const _aimRay = new THREE.Raycaster();
+const _aimNdc = new THREE.Vector2(0, AIM_NDC_Y);
+function aoeRadius(el, s) { return el === 'fire' ? 1.4 + 2.6 * s : el === 'ice' ? 0.8 + 1.2 * s : 0.9 + 1.6 * s; }
+function updateAim() {
+  const t = FOCUS.target;
+  if (t) {
+    AIM.hasTarget = true; AIM.hit = true;
+    AIM.point.set(t.pos.x, t.pos.y + t.height * 0.5, t.pos.z);
+    AIM.ground.set(t.pos.x, groundAt(t.pos.x, t.pos.z), t.pos.z);
+    return;
+  }
+  AIM.hasTarget = false;
+  _aimRay.setFromCamera(_aimNdc, camera);
+  const o = _aimRay.ray.origin, d = _aimRay.ray.direction;
+  const maxD = 90 + auraRadius() * 10;
+  const below = (k) => o.y + d.y * k < groundAt(o.x + d.x * k, o.z + d.z * k);
+  let prev = 0, hit = -1;
+  for (let k = 2; k <= maxD; k += 2) {
+    if (below(k)) {
+      let a = prev, b = k;
+      for (let i = 0; i < 7; i++) { const m = (a + b) / 2; if (below(m)) b = m; else a = m; }
+      hit = b; break;
+    }
+    prev = k;
+  }
+  AIM.hit = hit > 0;
+  AIM.point.copy(o).addScaledVector(d, AIM.hit ? hit : maxD);
+  AIM.ground.set(AIM.point.x, groundAt(AIM.point.x, AIM.point.z), AIM.point.z);
+}
 function aimDirection(from, out) {
-  const tgt = FOCUS.target;
-  if (tgt) return out.set(tgt.pos.x, tgt.pos.y + tgt.height * 0.5, tgt.pos.z).sub(from).normalize();
-  camera.getWorldDirection(out);
-  const far = tmpV2.copy(camera.position).addScaledVector(out, 60);
-  return out.copy(far).sub(from).normalize();
+  updateAim();
+  return out.copy(AIM.point).sub(from).normalize();
+}
+
+// 着弾点の輪（大きさ＝今の魔法の爆発範囲）と、杖から伸びる軌道の点線
+const aimMarker = (() => {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({ color: 0xff8a3a, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending,
+    depthWrite: false, depthTest: false, side: THREE.DoubleSide });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 48), mat);
+  const inner = new THREE.Mesh(new THREE.RingGeometry(0.05, 0.12, 16), mat);
+  ring.rotation.x = inner.rotation.x = -Math.PI / 2;
+  g.add(ring, inner);
+  for (let k = 0; k < 4; k++) {
+    const tick = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.28), mat);
+    tick.rotation.x = -Math.PI / 2;
+    const holder = new THREE.Group();
+    holder.rotation.y = k * Math.PI / 2;
+    tick.position.set(0, 0, 0.8);
+    holder.add(tick);
+    g.add(holder);
+  }
+  g.renderOrder = 15;
+  g.traverse(o => { o.renderOrder = 15; });
+  scene.add(g);
+  return { group: g, mat, ring };
+})();
+const AIM_DOTS = [];
+for (let i = 0; i < 16; i++) {
+  const d = makeGlowSprite(0xffffff, 0.35, 0.6);
+  d.material.depthTest = false;
+  d.renderOrder = 16;
+  scene.add(d);
+  AIM_DOTS.push(d);
+}
+const _aimFrom = new THREE.Vector3();
+function updateAimFx(dt, t, show) {
+  const visible = show && GAME.started && !GAME.paused && !GAME.dead;
+  aimMarker.group.visible = visible && AIM.hit;
+  AIM_DOTS.forEach(d => { d.visible = visible; });
+  if (!visible) return;
+  updateAim();
+  const e = ELEM[STATE.element];
+  const s = spellScale(MAGIC.charging ? MAGIC.chargeE : tapCost());
+  const R = Math.max(0.7, aoeRadius(STATE.element, s));
+  const strong = MAGIC.charging ? 1 : 0;
+  aimMarker.mat.color.setHex(e.color);
+  aimMarker.mat.opacity = (0.45 + strong * 0.35) * (0.85 + 0.15 * Math.sin(t * 6));
+  aimMarker.group.position.set(AIM.ground.x, AIM.ground.y + 0.15, AIM.ground.z);
+  aimMarker.group.scale.setScalar(R);
+  aimMarker.group.rotation.y += dt * 0.8;
+  // 軌道（杖の先から着弾点へ流れる光の点）
+  player.orbWorld(_aimFrom);
+  const L = _aimFrom.distanceTo(AIM.point);
+  const n = AIM_DOTS.length;
+  const phase = (t * 1.5) % 1;
+  AIM_DOTS.forEach((d, i) => {
+    const f = (i + phase) / n;
+    d.position.lerpVectors(_aimFrom, AIM.point, f);
+    const fade = Math.min(1, f * 6) * Math.min(1, (1 - f) * 8);
+    d.material.color.setHex(i % 2 ? e.color : e.c2);
+    d.material.opacity = (0.35 + strong * 0.55) * fade;
+    d.scale.setScalar((0.3 + strong * 0.2) * Math.max(1, L / 40));
+  });
 }
 
 function castSpell(el, E) {
@@ -268,10 +361,8 @@ function castSpell(el, E) {
     const tgt = FOCUS.target;
     if (tgt) point = new THREE.Vector3(tgt.pos.x, tgt.pos.y + tgt.height * 0.5, tgt.pos.z);
     else {
-      const fx = -Math.sin(cam.yaw), fz = -Math.cos(cam.yaw);
-      const r = 14 + s * 4;
-      point = new THREE.Vector3(player.pos.x + fx * r, 0, player.pos.z + fz * r);
-      point.y = groundAt(point.x, point.z) + 0.5;
+      updateAim();
+      point = AIM.hit ? AIM.ground.clone().add(new THREE.Vector3(0, 0.5, 0)) : AIM.point.clone();
     }
     thunderStrike(point, s, power, 2, tgt || null, null);
   }
@@ -334,7 +425,7 @@ function updateProjectiles(dt) {
 }
 
 function fireExplode(pos, s, power, direct) {
-  const R = 1.4 + 2.6 * s;
+  const R = aoeRadius('fire', s);
   explosionFx(pos, R, 0xff5a1a, 0xffc070);
   burst(pos.x, pos.y, pos.z, 30 + s * 20, 5 + s * 5, 0.7, 0.35 + s * 0.35, 0xff9a3a, -2);
   burst(pos.x, pos.y, pos.z, 12 + s * 8, 3 + s * 3, 1.0, 0.5 + s * 0.4, 0x5a4a44, -1.2);
@@ -356,7 +447,7 @@ function iceHit(pos, s, power, direct) {
   burst(pos.x, pos.y, pos.z, 16 + s * 10, 3 + s * 3, 0.6, 0.25 + s * 0.3, 0xcff4ff, 3);
   flashLight(pos, 0x7ad4ff, 2 + s, 10 + s * 4, 0.3);
   SOUND.ice(s);
-  const R = 0.8 + 1.2 * s;
+  const R = aoeRadius('ice', s);
   for (const en of ENEMIES) {
     if (!en.alive || !en.active) continue;
     const d = Math.hypot(en.pos.x - pos.x, en.pos.y + en.height * 0.5 - pos.y, en.pos.z - pos.z) - en.radius;
@@ -369,7 +460,7 @@ function thunderStrike(point, s, power, chains, first, from) {
   burst(point.x, point.y, point.z, 18 + s * 12, 6 + s * 4, 0.45, 0.25 + s * 0.3, 0xfff08a, 4);
   flashLight(point, 0xfff0a0, 5 + s * 2, 16 + s * 6, 0.25);
   if (!from) { shakeCamera(Math.min(0.45, 0.05 + s * 0.05)); SOUND.thunder(s); }
-  const R = 0.9 + 1.6 * s;
+  const R = aoeRadius('thunder', s);
   const hitList = [];
   for (const en of ENEMIES) {
     if (!en.alive || !en.active) continue;
