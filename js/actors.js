@@ -269,7 +269,7 @@ class Player {
       p.z = clamp(p.z, -lim, lim);
     }
 
-    if (input.jump && (this.onGround || this.inWater)) { this.vy = CONFIG.jumpPower; this.onGround = false; }
+    if (input.jump && (this.onGround || this.inWater)) { this.vy = CONFIG.jumpPower; this.onGround = false; SOUND.jump(); }
     input.jump = false;
     this.vy -= CONFIG.gravity * dt;
     p.y += this.vy * dt;

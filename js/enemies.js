@@ -307,7 +307,9 @@ function enemyAI(en, dt, t, dx, dz, dist) {
   if (en.flash > 0) en.flash -= dt;
   if (en.burn > 0) {
     en.burn -= dt; en.burnTick -= dt;
-    if (Math.random() < 0.5) spawnP(en.pos.x + (Math.random() - 0.5) * en.radius, en.pos.y + Math.random() * en.height, en.pos.z + (Math.random() - 0.5) * en.radius, 0, 2, 0, 0.5, 0.35 + en.radius * 0.2, 0xff7a2a, -1);
+    if (Math.random() < 0.6) PF.spawn(en.pos.x + (Math.random() - 0.5) * en.radius, en.pos.y + Math.random() * en.height, en.pos.z + (Math.random() - 0.5) * en.radius,
+      (Math.random() - 0.5) * 0.5, 1.5, (Math.random() - 0.5) * 0.5, 0.45, 0.4 + en.radius * 0.35, 0xffd890, 0x8a1a04, 0.85, -2, 1, -0.3);
+    if (Math.random() < 0.15) PS.spawn(en.pos.x, en.pos.y + en.height, en.pos.z, 0, 1.2, 0, 1.2, 0.3 + en.radius * 0.3, 0x2a2622, 0x5a5652, 0.3, -0.5, 1, 0.8, 1);
     if (en.burnTick <= 0) { en.burnTick = 0.5; damageEnemy(en, en.burnDps * 0.5, null, null, true); if (!en.alive) return; }
   }
   if (en.slow > 0) en.slow -= dt;
@@ -445,8 +447,7 @@ function enemyAttack(en, dist) {
   }
   if (en.attack === 'slam') {
     const R = T.reach * 1.6;
-    explosionFx(new THREE.Vector3(en.pos.x, groundAt(en.pos.x, en.pos.z) + 0.5, en.pos.z), R, 0xc8a870, 0xffffff);
-    burst(en.pos.x, en.pos.y + 0.3, en.pos.z, 60, 8, 0.8, 0.8, 0x9a8a6a, 6, 0.5);
+    dustImpact(new THREE.Vector3(en.pos.x, groundAt(en.pos.x, en.pos.z) + 0.5, en.pos.z), R);
     shakeCamera(0.45);
     SOUND.boom(3);
     if (dist < R + 0.5) damagePlayer(T.atk * 1.4, en);
@@ -482,6 +483,7 @@ function damageEnemy(en, amount, elem, from, isDot) {
     const nx = en.pos.x + kx / kd * k, nz = en.pos.z + kz / kd * k;
     if (en.dungeon || !inSafeZone(nx, nz)) { en.pos.x = nx; en.pos.z = nz; }
   }
+  if (!isDot && GAME.time - (UI.lastHitSnd || 0) > 0.06) { UI.lastHitSnd = GAME.time; SOUND.hit(); }
   if (en.hp <= 0) killEnemy(en);
 }
 
@@ -489,6 +491,7 @@ function killEnemy(en) {
   en.alive = false; en.active = false; en.deathT = 0;
   en.respawn = 50 + Math.random() * 30;
   en.mat.emissive.setHex(0);
+  SOUND.enemyDie();
   if (FOCUS.target === en) { FOCUS.target = null; FOCUS.manual = false; FOCUS.timer = 0.15; }
   burst(en.pos.x, en.pos.y + en.height * 0.5, en.pos.z, 30 + en.radius * 20, 4 + en.radius * 2, 0.8, 0.4 + en.radius * 0.2, 0xfff0c0, 1);
   const T = en.T;

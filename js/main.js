@@ -18,6 +18,7 @@ function teleport(x, z) {
 function warpTo(id) {
   const w = WARPS.find(v => v.id === id);
   if (!w) return;
+  SOUND.warp();
   fadeOut(() => {
     if (GAME.inDungeon) setDungeonMode(false);
     teleport(w.x + 2.5, w.z + 2.5);
@@ -141,6 +142,7 @@ addEventListener('keydown', (e) => {
     case 'Tab': cycleTarget(); break;
     case 'KeyE': doInteract(); break;
     case 'KeyM': openMap(); break;
+    case 'KeyJ': setQuestCollapsed(!$('quest').classList.contains('collapsed')); break;
     case 'KeyI': case 'Escape': openMenu(); break;
     case 'KeyF': beginCast(); break;
   }
@@ -248,6 +250,29 @@ holdButton($('talkBtn'), () => doInteract());
 document.querySelectorAll('.elbtn').forEach(b => holdButton(b, () => selectElement(b.dataset.el)));
 $('mapBtn').addEventListener('click', () => { if (!GAME.paused) openMap(); });
 $('menuBtn').addEventListener('click', () => { if (!GAME.paused) openMenu(); });
+$('musicBtn').addEventListener('click', () => { SOUND.init(); SOUND.setBgm(!SOUND.settings.bgm); setMusicBtn(); toast(SOUND.settings.bgm ? '音楽：オン' : '音楽：オフ'); });
+setMusicBtn();
+// 最初に触った時点で音を出せるようにする（スマホは操作が必要）
+['pointerdown', 'keydown'].forEach(ev => addEventListener(ev, () => SOUND.init(), { passive: true }));
+
+/* ---------- 場面に合わせて曲を選ぶ ---------- */
+function updateMusic() {
+  if (!GAME.started) { SOUND.setMusic('title'); return; }
+  let boss = false, fight = false;
+  for (const e of ENEMIES) {
+    if (!e.alive || !e.active || !e.aggro) continue;
+    if (e.T.boss) boss = true;
+    if (Math.hypot(e.pos.x - player.pos.x, e.pos.z - player.pos.z) < 45) fight = true;
+  }
+  if (fight || boss) GAME.lastFight = GAME.time;
+  const inTown = !GAME.inDungeon && (() => { const p = placeAt(player.pos.x, player.pos.z, 1.1); return p && !['start', 'ruins', 'dragon', 'spring'].includes(p.id); })();
+  let want = 'field';
+  if (boss) want = 'boss';
+  else if (GAME.time - (GAME.lastFight ?? -99) < 5) want = 'battle';
+  else if (GAME.inDungeon) want = 'dungeon';
+  else if (inTown) want = 'town';
+  SOUND.setMusic(want);
+}
 $('dialog').addEventListener('click', () => advanceDialog());
 
 /* ---------- カメラ ---------- */
@@ -320,6 +345,7 @@ function tick() {
 }
 function titleFrame(dt, t) {
   titleAngle += dt * 0.06;
+  updateMusic();
   const r = 34, y = PLACE.start.fh;
   camera.position.set(Math.sin(titleAngle) * r, y + 9, Math.cos(titleAngle) * r);
   camera.lookAt(0, y + 2, 0);
@@ -374,6 +400,7 @@ function frame(dt, t) {
   sea.position.z = Math.round(player.pos.z / 100) * 100;
   sea.position.y = CONFIG.waterLevel + Math.sin(t * 0.8) * 0.04;
   updateHUD(dt);
+  updateMusic();
   updateLabels(dt);
   updateQuestMark(t);
   // 自動記録
