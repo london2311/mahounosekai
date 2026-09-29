@@ -117,12 +117,23 @@ function doInteract() {
 }
 
 /* ---------- 入力 ---------- */
-const input = { x: 0, y: 0, run: false, jump: false };
+const input = { x: 0, y: 0, run: false, jump: false, up: false, down: false };
 const keys = new Set();
+const held = { up: false, down: false };
+// 押しっぱなしの判定を全部やめる（キーが離されたことに気づけない場面の保険）
+function releaseAllInput() {
+  keys.clear();
+  held.up = held.down = false;
+  input.x = input.y = 0; input.run = false; input.jump = false; input.up = input.down = false;
+  if (joy.id !== null) { joy.id = null; joy.x = joy.y = 0; joyEl.style.display = 'none'; knobEl.style.transform = ''; }
+}
+const MOVE_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
 addEventListener('keydown', (e) => {
   if (!GAME.started || CUT.active && !UI.dialog) return;
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.code)) e.preventDefault();
-  if (e.repeat) { keys.add(e.code); return; }
+  // Cmd や Ctrl を押している間は、離したキーの知らせが来ないことがある
+  if (e.metaKey || (e.ctrlKey && e.code !== 'ControlLeft' && e.code !== 'ControlRight')) { keys.clear(); return; }
+  if (e.repeat) { if (!UI.dialog && !UI.modal && !CUT.active) keys.add(e.code); return; }
   if (UI.dialog) {
     if (['Space', 'Enter', 'KeyE', 'KeyF'].includes(e.code)) advanceDialog();
     if (e.code === 'Escape' && UI.dialog.choices && UI.dialog.typing >= UI.dialog.full.length) {
@@ -137,6 +148,7 @@ addEventListener('keydown', (e) => {
   keys.add(e.code);
   switch (e.code) {
     case 'Space': input.jump = true; break;
+    case 'KeyV': player.setFlying(!player.flying); toast(player.flying ? '飛行：Space で上昇 / C で下降 / V で降りる' : '地上に降りた'); break;
     case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': case 'Digit5': case 'Digit6': case 'Digit7': case 'Digit8':
       selectElement(ELEM_ORDER[+e.code.slice(5) - 1]); break;
     case 'KeyQ': toggleFocus(); break;
@@ -150,15 +162,19 @@ addEventListener('keydown', (e) => {
 });
 addEventListener('keyup', (e) => {
   keys.delete(e.code);
+  // Cmd を離した時は、同時に押していた文字キーの keyup が来ないことがある（Mac）
+  if (e.key === 'Meta' || e.code === 'MetaLeft' || e.code === 'MetaRight' || e.key === 'Process') for (const k of MOVE_KEYS) keys.delete(k);
   if (e.code === 'KeyF') releaseCast();
 });
-addEventListener('blur', () => { keys.clear(); cancelCast(); });
+addEventListener('blur', () => { releaseAllInput(); cancelCast(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { releaseAllInput(); cancelCast(); } });
+addEventListener('contextmenu', () => releaseAllInput());
 
 function readKeyboard() {
   const k = (c) => keys.has(c);
   const x = (k('KeyD') || k('ArrowRight') ? 1 : 0) - (k('KeyA') || k('ArrowLeft') ? 1 : 0);
   const y = (k('KeyW') || k('ArrowUp') ? 1 : 0) - (k('KeyS') || k('ArrowDown') ? 1 : 0);
-  return { x, y, run: k('ShiftLeft') || k('ShiftRight') };
+  return { x, y, run: k('ShiftLeft') || k('ShiftRight'), up: k('Space'), down: k('KeyC') || k('ControlLeft') || k('ControlRight') };
 }
 function selectElement(el) {
   if (MAGIC.charging) return;
@@ -212,6 +228,7 @@ canvas.addEventListener('pointermove', (e) => {
   if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 1) cam.lastDrag = GAME.time;
   d.x = e.clientX; d.y = e.clientY;
 });
+canvas.addEventListener('lostpointercapture', (e) => endPointer(e));
 const endPointer = (e) => {
   if (e.pointerId === joy.id) {
     joy.id = null; joy.x = joy.y = 0;
@@ -244,7 +261,9 @@ function holdButton(el, down, up) {
   el.addEventListener('pointercancel', u);
 }
 holdButton($('castBtn'), () => beginCast(), () => releaseCast());
-holdButton($('jumpBtn'), () => { input.jump = true; });
+holdButton($('jumpBtn'), () => { input.jump = true; held.up = true; }, () => { held.up = false; });
+holdButton($('flyBtn'), () => { player.setFlying(!player.flying); });
+holdButton($('downBtn'), () => { held.down = true; }, () => { held.down = false; });
 holdButton($('focusBtn'), () => { if (FOCUS.on && FOCUS.target) cycleTarget(); else toggleFocus(); });
 $('focusBtn').addEventListener('dblclick', () => toggleFocus());
 holdButton($('talkBtn'), () => doInteract());
@@ -376,6 +395,8 @@ function frame(dt, t) {
     input.x = still ? 0 : clamp(kb.x + joy.x, -1, 1);
     input.y = still ? 0 : clamp(kb.y + joy.y, -1, 1);
     input.run = kb.run || Math.hypot(joy.x, joy.y) > 0.92;
+    input.up = !still && (kb.up || held.up);
+    input.down = !still && (kb.down || held.down);
     updateCharge(dt);
     player.update(dt, input, cam.yaw, t, MAGIC.charging);
     // 自然回復
@@ -402,6 +423,7 @@ function frame(dt, t) {
   updateCapital(dt, t);
   updateAura(dt, t);
   updateAimFx(dt, t, !CUT.active);
+  updateTears(dt, t);
   updateParticles(dt);
   updateFx(dt);
   updateLights(dt);

@@ -331,8 +331,32 @@ class Builder {
   }
 }
 
+// 表面の質感（石・土・木の細かなむら）を、世界の座標から作る
+function addSurfaceDetail(mat, big = 0) {
+  mat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;')
+      .replace('#include <project_vertex>', '#include <project_vertex>\nvWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+varying vec3 vWPos;
+float sdHash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+float sdNoise(vec3 p) {
+  vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(sdHash(i), sdHash(i + vec3(1, 0, 0)), f.x), mix(sdHash(i + vec3(0, 1, 0)), sdHash(i + vec3(1, 1, 0)), f.x), f.y),
+             mix(mix(sdHash(i + vec3(0, 0, 1)), sdHash(i + vec3(1, 0, 1)), f.x), mix(sdHash(i + vec3(0, 1, 1)), sdHash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+{
+  float n = sdNoise(vWPos * 1.7) * 0.45 + sdNoise(vWPos * 5.3) * 0.35 + sdNoise(vWPos * 17.0) * 0.2;
+  float g = ${big ? 'sdNoise(vWPos * 0.035) * 0.5 + sdNoise(vWPos * 0.11) * 0.5' : '0.5'};
+  diffuseColor.rgb *= (0.8 + 0.34 * n) * (0.88 + 0.24 * g);
+}`);
+  };
+  return mat;
+}
 const MAT = {
-  flat: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, flatShading: true }),
+  flat: addSurfaceDetail(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, flatShading: true })),
   glow: new THREE.MeshBasicMaterial({ vertexColors: true }),
   glowAdd: new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }),
   dark: new THREE.MeshBasicMaterial({ color: 0x050507 })

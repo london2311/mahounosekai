@@ -488,7 +488,7 @@ function spawnNPCs() {
       const base = d.spot ? SPOTS[d.spot] : d.at ? PLACE[d.at[0]] : home;
       path = d.path.map(([a, b]) => ({ x: base.x + a, z: base.z + b }));
     }
-    const n = { d, id: d.id, name: d.name, root: m.root, model: m.model, legL: m.legL, legR: m.legR,
+    const n = { d, id: d.id, name: d.name, m: m.rig ? m : null, rig: m.rig, root: m.root, model: m.model, legL: m.legL, legR: m.legR,
       pos: m.root.position, home, face: p.face, baseFace: p.face, fixedY: p.y, target: null, wait: Math.random() * 3,
       path, pathI: 0, phase: Math.random() * 10, talkCount: 0, talking: false, speed: d.move === 'patrol' ? 1.6 : 1.1 };
     NPC_LIST.push(n);
@@ -501,8 +501,16 @@ function updateNPCs(dt, t) {
   for (const n of NPC_LIST) {
     const dist = Math.hypot(n.pos.x - px, n.pos.z - pz);
     n.root.visible = !n.hidden && !GAME.inDungeon && dist < 170;
+    if (n.bubble && n.bubbleLife > 0 && (!n.root.visible || dist > 50 || CUT.active)) hideBubble(n);
     if (!n.root.visible || dist > 140) continue;
     let moving = false;
+    // 包囲中：団長の姿を見た人々の声
+    if (!STORY_FLAGS.liberated && n.d.siege && n.d.siege.greet && !n.greeted && dist < 10 && !CUT.active) {
+      n.greeted = true;
+      showBubble(n, n.pos, n.d.siege.greet, 'cry', (n.pose ? 1.4 : 2.3) * (n.d.look && n.d.look[1] && n.d.look[1].scale || 1));
+      n.bubbleLife = 4.5;
+    }
+    if (n.bubble) updateBubble(n);
     if (n.pose) {
       if (n.talking && n.pose !== 'lie') n.face = angleLerp(n.face, Math.atan2(px - n.pos.x, pz - n.pos.z), Math.min(1, dt * 4));
       n.root.rotation.y = n.face;
@@ -542,12 +550,13 @@ function updateNPCs(dt, t) {
     }
     n.pos.y = n.fixedY !== undefined && !moving ? n.fixedY : groundAt(n.pos.x, n.pos.z);
     n.root.rotation.y = n.face;
-    if (n.legL) {
-      n.phase += dt * (moving ? 7 : 0);
-      const sw = moving ? Math.sin(n.phase) * 0.6 : 0;
-      n.legL.rotation.x = sw; n.legR.rotation.x = -sw;
-    }
-    n.model.position.y = moving ? Math.abs(Math.sin(n.phase)) * 0.05 : Math.sin(t * 1.8 + n.phase) * 0.012;
+    if (n.rig) {
+      n.phase += dt * (moving ? n.speed * 4.2 : 0);
+      if (moving || n.wasMoving || !(n.idleT > 0)) { animateWalk(n.m, n.phase, moving ? 0.75 : 0, t); n.idleT = 0.5; }
+      else { n.idleT -= dt; n.rig.bones.chest.rotation.x = n.rig.bent + Math.sin(t * 1.6 + n.phase) * 0.015; }
+      n.wasMoving = moving;
+      n.model.position.y = moving ? Math.abs(Math.sin(n.phase)) * 0.03 : 0;
+    } else n.model.position.y = moving ? Math.abs(Math.sin(n.phase)) * 0.05 : Math.sin(t * 1.8 + n.phase) * 0.012;
   }
 }
 function nearestNPC(maxD) {
@@ -568,14 +577,14 @@ function nearestNPC(maxD) {
    ========================================================= */
 const NPC_STORY = {
   king: { role: 'アルディア国王', persona: '娘を失った父。それでも王であろうとしている。',
-    siege: { spot: 'throne', off: [0, 0.4], lines: ['……セシリアは、最後に笑っておった。「お父様、レグルスが来てくれる」と。',
+    siege: { spot: 'circle', off: [1.3, 0.3], pose: 'kneelCry', cry: true, lines: ['……セシリアは、最後に笑っておった。「お父様、レグルスが来てくれる」と。',
       '余は王だ。泣くのは、民がひとり残らず助かってからでよい。……行ってくれ、レグルス。'] },
     lines: ['娘の墓には、毎朝花が供えられている。……誰が置いているのか、余は知らぬふりをしておる。',
       'レグルス。この国の十万の民のうち、生き残ったのは四万に満たぬ。……それでも、国は国だ。',
       '復讐の先に何があるのか、余にも分からぬ。だが、あの子の命を無駄にはせぬ。'] },
-  cecilia: { name: 'セシリア', role: '王女', corpse: true, look: ['princess', { blood: true }],
+  cecilia: { name: 'セシリア', role: '王女', corpse: true, look: ['princess', {}],
     siege: { spot: 'circle', off: [0, -0.5], pose: 'lie', lines: ['……（安らかな顔で、眠るように横たわっている）'] }, lines: ['……'] },
-  oswald: { siege: { spot: 'throne', off: [-5, 4], lines: ['レ、レグルス殿……本当に……。い、いや、震えてなどおりませんぞ。数字を……数を数えていないと、正気が保てんのです。',
+  oswald: { siege: { spot: 'throne', off: [-5, 4], greet: '……レグルス殿……！ あ、ああ……本当に……！', lines: ['レ、レグルス殿……本当に……。い、いや、震えてなどおりませんぞ。数字を……数を数えていないと、正気が保てんのです。',
       '城に逃げ込めた民は、およそ二千。城下には……まだ、何万と……。'] },
     lines: ['復興の予算……いえ、今は人手です。瓦礫を片づける手が、まるで足りない。', '宰相ゼノン……あの男の目が嫌いだと、私はずっと言っておったのです。……ずっと。'] },
   seles: { name: 'セレス', role: '魔法学院 学院長／王国魔法師団 元副官', look: ['wizard_f', { dress: 0x3a2a6a, hair: 0xe8e4f0, blood: true }],
@@ -584,7 +593,7 @@ const NPC_STORY = {
     lines: ['五年間、あなたの墓に報告しに行ってた。学院のことも、この国のことも。……まさか返事が来るなんてね。',
       '学院の子たちは半分しか残らなかった。……それでも、また授業をするわ。あなたがそうしたように。'] },
   gareth: { role: '近衛騎士団長（重傷）', look: ['knight', { cape: 0x9a1f2a, blood: true }],
-    siege: { spot: 'courtyard', off: [11, -15], pose: 'sit', lines: ['……わっはっは……ざまぁねえ……脚をやられた……。レグルス、お前……本物か……',
+    siege: { spot: 'courtyard', off: [11, -15], pose: 'sit', greet: '……は……幻か……。俺も、もう終わりだな……', lines: ['……わっはっは……ざまぁねえ……脚をやられた……。レグルス、お前……本物か……',
       '騎士は民を守るもんだ……なのに俺は……守られてばかりだ……。……頼む、城下の連中を……'] },
     lines: ['脚は片方になっちまったが、剣は振れる。騎士団を一から鍛え直しだ。', '……レグルス。あの夜、お前が来なかったら、俺たちは全員死んでた。……酒でも奢らせろ。'] },
   volk: { name: 'ヴォルク', role: '王国魔法師団 副団長', look: ['wizard_m', { dress: 0x9a2a1a, beard: 0x8a2a1a, hair: 0x8a2a1a, blood: true }],
@@ -599,16 +608,16 @@ const NPC_STORY = {
     persona: '最年少の隊長。レグルスに拾われた孤児で、兄のように慕っている。',
     siege: { spot: 'courtyard', off: [6, -14], lines: ['団長が戻ってきたんだ！ 死んでたまるかよ！', '城下で、俺の知ってる奴らが……くそっ！'] },
     lines: ['団長、今度の戦は俺も連れてってくれよ！ ……だめ？ ちぇっ。', '昔、団長に「雷は怒りで撃つな」って言われたの、やっと分かった気がする。'] },
-  marco: { siege: { spot: 'roomC', off: [4, 2], lines: ['救護室はもういっぱいです。……薬も包帯も、足りない。', '王女様が……王女様が……。すみません、職務中に。'] } },
-  anna: { role: '城の侍女（救護係）', siege: { spot: 'roomC', off: [-4, 1], lines: ['お湯を……お湯をもっと……。血が、止まらないの……。', '王女様の紅茶は、九十五度のお湯で三分。……もう、淹れて差し上げられない。'] },
+  marco: { siege: { spot: 'roomC', off: [4, 2], greet: '……師団長……？ ……本物、なのか……', lines: ['救護室はもういっぱいです。……薬も包帯も、足りない。', '王女様が……王女様が……。すみません、職務中に。'] } },
+  anna: { role: '城の侍女（救護係）', siege: { spot: 'roomC', off: [-4, 1], pose: 'kneel', cry: true, greet: '……ああ……姫様……姫様が、呼んでくださった方……', lines: ['お湯を……お湯をもっと……。血が、止まらないの……。', '王女様の紅茶は、九十五度のお湯で三分。……もう、淹れて差し上げられない。'] },
     lines: ['王女様の部屋は、そのままにしてあります。……掃除だけは、毎日。'] },
-  clara: { siege: { spot: 'roomC', off: [2, -3], lines: ['神父様は、逃げ遅れた人たちを庇って……聖堂の前で……。', '……祈ることしか、できないのです。'] },
+  clara: { siege: { spot: 'roomC', off: [2, -3], pose: 'kneel', greet: '……祈りが……届いた……', lines: ['神父様は、逃げ遅れた人たちを庇って……聖堂の前で……。', '……祈ることしか、できないのです。'] },
     lines: ['神父様の代わりに、弔いの祈りを続けています。……名前を、一人ずつ呼びながら。'] },
-  mimi: { siege: { spot: 'roomC', off: [-2, 4], pose: 'sit', lines: ['……おかあさん、どこ……？', '……おにいちゃん、魔法使い？ ……わるいひと、やっつけてくれる？'] },
+  mimi: { siege: { spot: 'roomC', off: [-2, 4], pose: 'hug', cry: true, greet: 'おかあさん……おかあさん……', lines: ['……おかあさん、どこ……？', '……おにいちゃん、魔法使い？ ……わるいひと、やっつけてくれる？'] },
     lines: ['おかあさんね、お星さまになったんだって。……だから、夜はさみしくないよ。'] },
-  toto: { siege: { spot: 'roomC', off: [-1, 5], pose: 'sit', lines: ['……ぼく、泣いてないよ。ミミを守るって、とうちゃんと約束したから。'] },
+  toto: { siege: { spot: 'roomC', off: [-1, 5], pose: 'sit', greet: '……まほうつかい、さん……？ たすけに、きたの……？', lines: ['……ぼく、泣いてないよ。ミミを守るって、とうちゃんと約束したから。'] },
     lines: ['大きくなったら、ぼく魔法師団に入る！ 団長みたいになるんだ！'] },
-  beatrice: { siege: { spot: 'roomC', off: [5, -2], lines: ['宝石も屋敷も、ぜんぶ燃えましたわ。……夫も。……おかしいわね、宝石のことばかり考えてしまうの。'] } },
+  beatrice: { siege: { spot: 'roomC', off: [5, -2], pose: 'cry', cry: true, greet: '……遅いのよ……どうして……もっと早く……', lines: ['宝石も屋敷も、ぜんぶ燃えましたわ。……夫も。……おかしいわね、宝石のことばかり考えてしまうの。'] } },
   roy: { lines: ['……門を、もう二度と破らせません。この命に代えても。', '団長。あの時、助けてくれて……。いえ、何でもありません。任務に戻ります。'] },
   karl: { role: '新米兵士（療養中）', lines: ['……まだ、指がうまく動かなくて。でも、剣は握れます。', '団長……僕、ちゃんと戦えてましたか？ ……そうですか。……へへ。'] },
   ben: { dead: true }, ambrose: { dead: true }, gino: { dead: true }, zacharia: { dead: true },
@@ -664,7 +673,7 @@ function npcPhasePos(n) {
   if (!lib) {
     if (d.siege) {
       const s = SPOTS[d.siege.spot];
-      return s ? { x: s.x + d.siege.off[0], z: s.z + d.siege.off[1], pose: d.siege.pose || '', y: s.y } : null;
+      return s ? { x: s.x + d.siege.off[0], z: s.z + d.siege.off[1], pose: d.siege.pose || '', y: s.y, cry: !!d.siege.cry } : null;
     }
     const inAldia = (d.at && d.at[0] === 'aldia') || (d.bld && d.bld.startsWith('aldia')) || (d.spot === 'throne');
     if (inAldia) return null;
@@ -685,6 +694,7 @@ function refreshNPCs() {
     if (!p) { n.root.visible = false; continue; }
     const moved = Math.hypot(p.x - n.pos.x, p.z - n.pos.z) > 0.5 || (n.pose || '') !== p.pose;
     n.pose = p.pose;
+    if (n.m) setCrying(n.m, !!p.cry);
     if (moved) {
       n.home = { x: p.x, z: p.z };
       n.fixedY = p.y;
@@ -692,9 +702,8 @@ function refreshNPCs() {
       const gy = p.y !== undefined ? p.y : groundAt(p.x, p.z);
       n.pos.set(p.x, gy, p.z);
       n.model.rotation.set(0, 0, 0); n.model.position.set(0, 0, 0);
-      if (n.legL) { n.legL.rotation.x = n.legR.rotation.x = 0; }
-      if (p.pose === 'lie') { n.model.rotation.x = -Math.PI / 2; n.model.position.set(0, 0.25, -0.9); n.face = 0.3; }
-      else if (p.pose === 'sit') { if (n.legL) n.legL.rotation.x = n.legR.rotation.x = -1.45; n.model.position.y = -0.55; n.model.rotation.x = 0.1; }
+      if (n.m) setRigPose(n.m, p.pose === 'stand' ? '' : p.pose);
+      if (p.pose === 'lie') n.face = 0.3;
       n.root.rotation.y = n.face;
       if (!p.pose && n.d.path) {
         const base = n.home;

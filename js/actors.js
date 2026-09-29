@@ -56,166 +56,35 @@ function lookFor(kind, seedStr, over = {}) {
   return Object.assign(L, k, over);
 }
 
-// 人の形を作る（体は1つにまとめ、脚だけ動かす）
-function buildHumanoid(o) {
-  const B = new Builder();
-  const bw = o.bulk || 1;
-  const bent = o.bent ? 1 : 0;
-  const hy = 1.98 - bent * 0.12, hz = bent * 0.12;
-  // 胴
-  B.box(0, 1.25, 0, 0.78 * bw, 0.9, 0.44 * bw, o.top);
-  if (o.stripes) for (let k = 0; k < 3; k++) B.box(0, 1.0 + k * 0.25, 0, 0.8 * bw, 0.07, 0.46 * bw, o.stripes);
-  if (o.armor) {
-    B.box(0, 1.3, 0, 0.84 * bw, 0.7, 0.5 * bw, o.armor);
-    B.box(-0.5 * bw, 1.62, 0, 0.36, 0.2, 0.46, o.armor);
-    B.box(0.5 * bw, 1.62, 0, 0.36, 0.2, 0.46, o.armor);
-  }
-  if (o.dress) B.cyl(0, 0.62, 0, 0.4 * bw, 0.62 * bw, 1.1, o.dress, 10);
-  if (o.apron) B.box(0, 1.0, 0.24 * bw, 0.55 * bw, 0.9, 0.05, o.apron);
-  if (o.cape) B.box(0, 1.15, -0.26 * bw, 0.82 * bw, 1.35, 0.06, o.cape, 0, -0.08);
-  if (o.shawl) B.box(0, 1.55, 0, 0.84 * bw, 0.3, 0.5 * bw, o.shawl);
-  if (o.blood) {
-    const R = mulberry32(hashStr(String(o.top) + String(o.skin)));
-    for (let k = 0; k < 6; k++) B.box((R() - 0.5) * 0.7 * bw, 0.9 + R() * 0.8, 0.23 * bw + 0.01, 0.12 + R() * 0.2, 0.1 + R() * 0.25, 0.02, R() < 0.5 ? 0x7a0808 : 0x4a0404);
-    B.box(0.05, hy - 0.1, hz + 0.3, 0.12, 0.12, 0.02, 0x7a0808);
-  }
-  // 腕
-  const sleeve = o.armor || o.top;
-  B.box(-0.5 * bw, 1.25, 0.02, 0.2, 0.78, 0.22, sleeve, 0, 0, 0.1);
-  B.box(0.5 * bw, 1.25, 0.02, 0.2, 0.78, 0.22, sleeve, 0, 0, -0.1);
-  B.box(-0.56 * bw, 0.82, 0.03, 0.16, 0.16, 0.16, o.skin);
-  B.box(0.56 * bw, 0.82, 0.03, 0.16, 0.16, 0.16, o.skin);
-  // 頭
-  B.sphere(0, hy, hz, 0.32, o.skin, 1, 1, 1, 1);
-  B.box(-0.11, hy + 0.02, hz + 0.29, 0.06, 0.08, 0.03, 0x1a1a1a);
-  B.box(0.11, hy + 0.02, hz + 0.29, 0.06, 0.08, 0.03, 0x1a1a1a);
-  if (o.glasses) { B.box(0, hy + 0.03, hz + 0.31, 0.42, 0.05, 0.02, 0x3a3a3a); }
-  if (o.elf) {
-    B.cone(-0.33, hy + 0.08, hz, 0.06, 0.3, o.skin, 4, 0, 0, 1.2);
-    B.cone(0.33, hy + 0.08, hz, 0.06, 0.3, o.skin, 4, 0, 0, -1.2);
-  }
-  if (o.beard) B.box(0, hy - 0.22, hz + 0.24, 0.34, 0.3, 0.14, o.beard);
-  if (o.snout) B.box(0, hy - 0.08, hz + 0.34, 0.26, 0.2, 0.34, o.snout);
-  if (o.horns) { B.cone(-0.2, hy + 0.35, hz, 0.07, 0.35, o.horns, 5, 0, 0, 0.4); B.cone(0.2, hy + 0.35, hz, 0.07, 0.35, o.horns, 5, 0, 0, -0.4); }
-  if (o.tail) B.cyl(0, 0.7, -0.5, 0.05, 0.16, 1.1, o.tail, 6, 0, -1.0);
-  if (o.eyeGlow) { B.box(-0.11, hy + 0.02, hz + 0.3, 0.09, 0.09, 0.03, o.eyeGlow); B.box(0.11, hy + 0.02, hz + 0.3, 0.09, 0.09, 0.03, o.eyeGlow); }
-  // 髪
-  const hs = o.hairStyle;
-  if (hs !== 'bald') B.sphere(0, hy + 0.06, hz - 0.03, 0.34, o.hair, 1, 0.82, 1);
-  if (hs === 'long') B.box(0, hy - 0.3, hz - 0.2, 0.6, 0.75, 0.2, o.hair);
-  if (hs === 'bun') B.sphere(0, hy + 0.26, hz - 0.26, 0.16, o.hair);
-  if (hs === 'pony') B.box(0, hy - 0.15, hz - 0.35, 0.14, 0.5, 0.14, o.hair);
-  // 帽子
-  const hc = o.hatColor || 0x3a3a3a;
-  switch (o.hat) {
-    case 'wizard':
-      B.cyl(0, hy + 0.24, hz, 0.62, 0.62, 0.05, o.dress || hc, 14);
-      B.cone(0, hy + 0.72, hz, 0.34, 0.95, o.dress || hc, 10, 0, -0.12);
-      break;
-    case 'witch':
-      B.cyl(0, hy + 0.24, hz, 0.75, 0.75, 0.05, hc, 14);
-      B.cone(0, hy + 0.85, hz - 0.05, 0.36, 1.2, hc, 10, 0, -0.25);
-      break;
-    case 'crown':
-      B.cyl(0, hy + 0.32, hz, 0.3, 0.3, 0.24, hc, 8);
-      for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; B.cone(Math.cos(a) * 0.27, hy + 0.5, hz + Math.sin(a) * 0.27, 0.06, 0.16, hc, 4); }
-      break;
-    case 'tiara': B.torus(0, hy + 0.3, hz, 0.28, 0.04, hc, Math.PI / 2); B.sphere(0, hy + 0.34, hz + 0.28, 0.06, 0xd94a6a); break;
-    case 'helmet':
-      B.sphere(0, hy + 0.1, hz, 0.37, hc, 1, 0.85, 1);
-      B.box(0, hy + 0.36, hz, 0.06, 0.2, 0.5, hc);
-      break;
-    case 'hood': B.sphere(0, hy + 0.06, hz - 0.05, 0.38, hc, 1, 1, 1.05); break;
-    case 'bandana': B.sphere(0, hy + 0.12, hz - 0.02, 0.345, hc, 1, 0.7, 1); break;
-    case 'cap': B.cyl(0, hy + 0.3, hz, 0.3, 0.33, 0.18, hc, 10); break;
-    case 'straw': B.cyl(0, hy + 0.26, hz, 0.62, 0.62, 0.05, hc, 12); B.cyl(0, hy + 0.36, hz, 0.25, 0.3, 0.2, hc, 10); break;
-    case 'turban': B.sphere(0, hy + 0.2, hz, 0.38, hc, 1, 0.75, 1); break;
-    case 'mitre': B.cone(0, hy + 0.55, hz, 0.26, 0.6, hc, 4, Math.PI / 4); break;
-    case 'feather': B.cyl(0, hy + 0.28, hz, 0.34, 0.38, 0.16, hc, 10); B.box(0.2, hy + 0.5, hz - 0.1, 0.04, 0.4, 0.12, 0xd94a4a, 0, 0, -0.4); break;
-  }
-  // 持ち物
-  switch (o.prop) {
-    case 'staff': B.cyl(0.62 * bw, 1.1, 0.12, 0.04, 0.05, 2.3, 0x6b4a2c, 6); B.sphere(0.62 * bw, 2.3, 0.12, 0.13, 0x9ad4ff); break;
-    case 'staffRed': B.cyl(0.62 * bw, 1.1, 0.12, 0.04, 0.05, 2.3, 0x1a1a1a, 6); B.sphere(0.62 * bw, 2.3, 0.12, 0.14, 0xd8202a); break;
-    case 'cane': B.cyl(0.58 * bw, 0.45, 0.25, 0.035, 0.035, 0.95, 0x6b4a2c, 5); break;
-    case 'spear': B.cyl(0.6 * bw, 1.3, 0.12, 0.035, 0.035, 2.8, 0x5d4028, 5); B.cone(0.6 * bw, 2.85, 0.12, 0.08, 0.3, 0xc9ced4, 5); break;
-    case 'sword': B.box(-0.45 * bw, 0.78, 0.18, 0.08, 0.9, 0.04, 0xc9ced4, 0, 0.3); break;
-    case 'hammer': B.cyl(0.58 * bw, 0.9, 0.2, 0.03, 0.03, 0.7, 0x5d4028, 5); B.box(0.58 * bw, 0.6, 0.2, 0.26, 0.16, 0.16, 0x4a4a4a); break;
-    case 'book': B.box(-0.45 * bw, 1.0, 0.3, 0.3, 0.38, 0.1, 0x7a2a2a); break;
-    case 'bow': B.torus(-0.52 * bw, 1.2, -0.28, 0.6, 0.03, 0x6b4a2c, 0, Math.PI / 2); break;
-    case 'rod': B.cyl(0.6 * bw, 1.6, 0.6, 0.02, 0.03, 2.8, 0x8a6a45, 5, 0, 0.6); break;
-    case 'club': B.cyl(0.6 * bw, 0.9, 0.35, 0.09, 0.05, 1.1, 0x6b4a2c, 6, 0, 0.9); break;
-    case 'knife': B.box(0.58 * bw, 0.7, 0.2, 0.05, 0.45, 0.08, 0xc9ced4); break;
-    case 'axe': B.cyl(0.6 * bw, 1.0, 0.2, 0.04, 0.04, 1.3, 0x5d4028, 5); B.box(0.6 * bw, 1.55, 0.38, 0.06, 0.4, 0.35, 0x9aa0a8); break;
-    case 'lute': B.sphere(0.1, 1.1, 0.3, 0.26, 0xa8743a, 1, 1.2, 0.5); B.box(0.25, 1.45, 0.3, 0.08, 0.6, 0.05, 0x5d4028, 0, 0, -0.5); break;
-  }
-  const body = B.mesh(o.mat || MAT.flat);
-  const root = new THREE.Group();
-  const model = new THREE.Group();
-  root.add(model);
-  model.add(body);
-  const legB = new Builder();
-  legB.box(0, -0.38, 0, 0.26, 0.76, 0.26, o.bottom);
-  legB.box(0, -0.78, 0.05, 0.28, 0.1, 0.36, o.shoes || 0x2e2218);
-  const legGeo = legB.geometry();
-  const legL = new THREE.Mesh(legGeo, o.mat || MAT.flat), legR = new THREE.Mesh(legGeo, o.mat || MAT.flat);
-  legL.castShadow = legR.castShadow = true;
-  const pL = new THREE.Group(), pR = new THREE.Group();
-  pL.position.set(-0.19 * bw, 0.82, 0); pR.position.set(0.19 * bw, 0.82, 0);
-  pL.add(legL); pR.add(legR);
-  model.add(pL, pR);
-  root.scale.setScalar(o.scale || 1);
-  return { root, model, legL: pL, legR: pR, body };
-}
-
 /* =========================================================
    主人公（見習い魔法使い）
    ========================================================= */
 class Player {
   constructor() {
-    const box = (B, ...a) => B.box(...a);
     this.root = new THREE.Group();
-    this.model = new THREE.Group();   // 正面は +Z
-    this.root.add(this.model);
-    // 王国魔法師団長の礼装（黒と群青の長衣、金の縁取り、白銀の髪）
-    const robe = 0x161c30, trim = 0xd9b34a, skin = 0xeac4a0, hair = 0xe8ecf0;
-    const B = new Builder();
-    box(B, 0, 1.28, 0, 0.84, 0.95, 0.46, robe);
-    B.cyl(0, 0.6, 0, 0.44, 0.62, 1.18, robe, 12);
-    B.cyl(0, 0.04, 0, 0.62, 0.63, 0.08, trim, 12);
-    box(B, 0, 1.18, 0.235, 0.1, 1.2, 0.02, trim);
-    box(B, -0.18, 1.5, 0.235, 0.05, 0.5, 0.02, trim); box(B, 0.18, 1.5, 0.235, 0.05, 0.5, 0.02, trim);
-    box(B, 0, 0.96, 0, 0.86, 0.1, 0.5, 0x3a2a1a);
-    box(B, 0, 0.96, 0.26, 0.2, 0.16, 0.04, trim);
-    // 肩当てと立ち襟
-    box(B, -0.5, 1.72, 0, 0.42, 0.16, 0.54, 0x2a2e44); box(B, 0.5, 1.72, 0, 0.42, 0.16, 0.54, 0x2a2e44);
-    box(B, -0.5, 1.79, 0, 0.44, 0.04, 0.56, trim); box(B, 0.5, 1.79, 0, 0.44, 0.04, 0.56, trim);
-    B.cyl(0, 1.8, -0.02, 0.28, 0.3, 0.26, robe, 10);
-    B.sphere(0, 2.02, 0, 0.3, skin, 1, 1.05, 1, 1);
-    B.sphere(0, 2.1, -0.04, 0.33, hair, 1, 0.8, 1);
-    box(B, 0, 1.86, -0.24, 0.5, 0.55, 0.14, hair);
-    box(B, -0.24, 1.98, 0.08, 0.08, 0.4, 0.2, hair); box(B, 0.24, 1.98, 0.08, 0.08, 0.4, 0.2, hair);
-    box(B, -0.1, 2.04, 0.28, 0.07, 0.05, 0.02, 0x3a6aa8);
-    box(B, 0.1, 2.04, 0.28, 0.07, 0.05, 0.02, 0x3a6aa8);
-    box(B, 0, 2.18, 0.26, 0.5, 0.05, 0.05, trim);
-    // 外套
-    box(B, 0, 1.08, -0.3, 0.98, 1.9, 0.05, 0x0c0e1a, 0, -0.07);
-    box(B, 0, 0.16, -0.36, 1.0, 0.1, 0.06, trim, 0, -0.07);
-    this.body = B.mesh();
-    this.model.add(this.body);
-    const limb = (x, y, w, h, color, extra) => {
-      const pivot = new THREE.Group(); pivot.position.set(x, y, 0);
-      const L = new Builder();
-      L.box(0, -h / 2, 0, w, h, w, color);
-      if (extra) extra(L, h);
-      const m = L.mesh(); pivot.add(m);
-      return pivot;
-    };
-    this.armL = limb(-0.54, 1.64, 0.22, 0.8, robe, (L, h) => { L.box(0, -h + 0.1, 0, 0.26, 0.2, 0.26, trim); L.box(0, -h - 0.06, 0, 0.16, 0.16, 0.16, 0xf4f0e6); });
-    this.armR = limb(0.54, 1.64, 0.22, 0.8, robe, (L, h) => { L.box(0, -h + 0.1, 0, 0.26, 0.2, 0.26, trim); L.box(0, -h - 0.06, 0, 0.16, 0.16, 0.16, 0xf4f0e6); });
-    // 杖（手首を支点に回す）と先の宝珠
+    // 王国魔法師団長の礼装（黒と群青の長衣、金の縁取り、白銀の髪、長い外套）
+    const trim = 0xd9b34a;
+    const m = buildHumanoid({ skin: 0xeac4a0, hair: 0xe8ecf0, hairStyle: 'long', female: false, top: 0x161c30, bottom: 0x14141c,
+      dress: 0x161c30, dressTrim: trim, cape: 0x0c0e1a, belt: 0x3a2a1a, shoes: 0x14141c, cuff: trim, brow: 0xc8ccd4, eyeGlow: undefined });
+    this.m = m;
+    this.model = m.model;
+    this.root.add(m.root);
+    this.body = m.body;
+    const b = m.rig.bones;
+    this.armL = b.uArmL; this.armR = b.uArmR; this.legL = b.thighL; this.legR = b.thighR;
+    // 金の肩章と胸の紋章（胸の骨につける）
+    const deco = new SmoothBuilder();
+    for (const s of [-1, 1]) { deco.ellip(s * 0.2, 0.37, 0, 0.1, 0.045, 0.1, 0x2a2e44); deco.torus(s * 0.2, 0.395, 0, 0.1, 0.008, trim, Math.PI / 2); }
+    deco.box(0, 0.22, 0.12, 0.05, 0.07, 0.01, trim);
+    deco.cyl(0, 0.43, -0.01, 0.1, 0.11, 0.08, 0x161c30, 14);
+    const decoMesh = new THREE.Mesh(deco.geometry(false), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.3 }));
+    decoMesh.castShadow = true;
+    b.chest.add(decoMesh);
+    // 杖（右手に持つ）と先の宝珠
     this.staff = new THREE.Group();
-    this.staff.position.set(0, -0.84, 0.06);
+    const hand = m.rig.J[6];
+    this.staff.position.set(0.012, -0.31, 0.03);
+    this.staff.scale.setScalar(0.72);
     const SB = new Builder();
     SB.cyl(0, 0.15, 0, 0.045, 0.055, 2.2, 0x1a1a24, 6);
     SB.torus(0, 1.18, 0, 0.16, 0.035, 0xd9b34a, Math.PI / 2);
@@ -227,10 +96,8 @@ class Player {
     this.orbGlow = makeGlowSprite(0xffb060, 0.9, 0.9);
     this.orb.add(this.orbGlow);
     this.staff.add(this.orb);
-    this.armR.add(this.staff);
-    this.legL = limb(-0.2, 0.82, 0.26, 0.8, 0x14141c);
-    this.legR = limb(0.2, 0.82, 0.26, 0.8, 0x14141c);
-    this.model.add(this.armL, this.armR, this.legL, this.legR);
+    b.fArmR.add(this.staff);
+    void hand;
     scene.add(this.root);
 
     this.pos = new THREE.Vector3(CONFIG.spawn.x, 0, CONFIG.spawn.z);
@@ -238,11 +105,13 @@ class Player {
     this.vy = 0;
     this.onGround = true;
     this.inWater = false;
+    this.flying = false;
     this.facing = Math.PI;
     this.phase = 0;
     this.radius = 0.45;
     this.castAnim = 0;
     this.hurtT = 0;
+    this.pose = '';
   }
   orbWorld(out) { this.orb.getWorldPosition(out); return out; }
   floorAt(x, z) {
@@ -254,46 +123,84 @@ class Player {
     const rise = groundAt(toX, toZ, this.pos.y) - groundAt(fromX, fromZ, this.pos.y);
     return rise < 0.6 || rise / d <= CONFIG.maxSlope;
   }
+  // 空を飛ぶ／降りる
+  setFlying(on) {
+    if (on === this.flying) return;
+    if (on && GAME.inDungeon) { toast('ここでは飛べない'); return; }
+    this.flying = on;
+    this.vy = on ? 6 : 0;
+    this.onGround = false;
+    if (on) { SOUND.jump(); burst(this.pos.x, this.pos.y + 0.3, this.pos.z, 40, 5, 0.6, 0.3, ELEM[STATE.element].c2, -1); shockRing(this.pos.x, this.pos.z, 4, ELEM[STATE.element].color, 0.5); }
+    setFlyUI();
+  }
+  altitude() { return this.pos.y - this.floorAt(this.pos.x, this.pos.z); }
+  setPose(p) { if (this.pose === p) return; this.pose = p; setRigPose(this.m, p); }
   update(dt, input, camYaw, time, charging) {
     const fx = -Math.sin(camYaw), fz = -Math.cos(camYaw);
     const rx = Math.cos(camYaw), rz = -Math.sin(camYaw);
     let mx = fx * input.y + rx * input.x, mz = fz * input.y + rz * input.x;
     const len = Math.hypot(mx, mz);
     if (len > 1) { mx /= len; mz /= len; }
+    const p = this.pos;
 
-    const g = groundAt(this.pos.x, this.pos.z, this.pos.y);
-    this.inWater = waterAt(this.pos.x, this.pos.z) - g > 1.0;
+    const g = groundAt(p.x, p.z, p.y);
+    this.inWater = !this.flying && waterAt(p.x, p.z) - g > 1.0;
     let speed = (input.run ? CONFIG.runSpeed : CONFIG.walkSpeed) * (this.inWater ? 0.55 : 1);
+    if (this.flying) speed = input.run ? 46 : 22;
     if (charging) speed *= 0.45;
     speed *= STATE.speedMul || 1;
-    const k = 1 - Math.exp(-(this.onGround ? 12 : 3) * dt);
+    const k = 1 - Math.exp(-(this.onGround || this.flying ? (this.flying ? 4 : 12) : 3) * dt);
     this.vel.x = lerp(this.vel.x, mx * speed, k);
     this.vel.z = lerp(this.vel.z, mz * speed, k);
 
-    const p = this.pos;
     const nx = p.x + this.vel.x * dt, nz = p.z + this.vel.z * dt;
-    const checkSlope = this.onGround && !this.inWater;
+    const checkSlope = this.onGround && !this.inWater && !this.flying;
     if (!checkSlope || this.canStep(p.x, p.z, nx, nz)) { p.x = nx; p.z = nz; }
     else if (this.canStep(p.x, p.z, nx, p.z)) { p.x = nx; this.vel.z = 0; }
     else if (this.canStep(p.x, p.z, p.x, nz)) { p.z = nz; this.vel.x = 0; }
     else { this.vel.x = this.vel.z = 0; }
 
-    resolveCollisions(p, this.radius);
+    // 高く飛んでいる時は建物の上を越えられる
+    if (!this.flying || this.altitude() < 7) resolveCollisions(p, this.radius);
     if (!GAME.inDungeon) {
       const lim = HALF - 8;
       p.x = clamp(p.x, -lim, lim);
       p.z = clamp(p.z, -lim, lim);
     }
 
-    if (input.jump && (this.onGround || this.inWater)) { this.vy = CONFIG.jumpPower; this.onGround = false; SOUND.jump(); }
-    input.jump = false;
-    this.vy -= CONFIG.gravity * dt;
-    p.y += this.vy * dt;
-    const floor = this.floorAt(p.x, p.z);
-    if (p.y <= floor || (this.onGround && this.vy <= 0 && p.y - floor < 0.6)) {
-      p.y = floor; this.vy = 0; this.onGround = true;
+    if (this.flying) {
+      // 上昇・下降・その場に浮く
+      const want = (input.up ? 1 : 0) - (input.down ? 1 : 0);
+      this.vy = lerp(this.vy, want * (input.run ? 26 : 14), 1 - Math.exp(-5 * dt));
+      p.y += this.vy * dt + Math.sin(time * 2.2) * 0.004;
+      const floor = this.floorAt(p.x, p.z);
+      const top = floor + 260;
+      if (p.y > top) { p.y = top; this.vy = Math.min(0, this.vy); }
+      if (p.y <= floor + 0.05) {
+        p.y = floor;
+        if (input.down || want < 0) { this.setFlying(false); this.onGround = true; }
+        else this.vy = Math.max(0, this.vy);
+      }
+      input.jump = false;
+      // 風を切る光
+      if (Math.random() < dt * (8 + Math.hypot(this.vel.x, this.vel.z))) {
+        const e = ELEM[STATE.element];
+        spawnP(p.x + (Math.random() - 0.5) * 0.8, p.y + 0.4 + Math.random() * 1.6, p.z + (Math.random() - 0.5) * 0.8, -this.vel.x * 0.3, -1, -this.vel.z * 0.3, 0.8, 0.1, Math.random() < 0.5 ? e.color : e.c2);
+      }
     } else {
-      this.onGround = false;
+      if (input.jump) {
+        if (this.onGround || this.inWater) { this.vy = CONFIG.jumpPower; this.onGround = false; SOUND.jump(); }
+        else if (!GAME.inDungeon) this.setFlying(true);      // 空中でもう一度跳ぶと飛ぶ
+      }
+      input.jump = false;
+      this.vy -= CONFIG.gravity * dt;
+      p.y += this.vy * dt;
+      const floor = this.floorAt(p.x, p.z);
+      if (p.y <= floor || (this.onGround && this.vy <= 0 && p.y - floor < 0.6)) {
+        p.y = floor; this.vy = 0; this.onGround = true;
+      } else {
+        this.onGround = false;
+      }
     }
 
     if (this.faceTo !== undefined) {
@@ -302,26 +209,41 @@ class Player {
       if (this.faceTimer <= 0) this.faceTo = undefined;
     } else if (len > 0.05) this.facing = angleLerp(this.facing, Math.atan2(mx, mz), Math.min(1, 12 * dt));
 
-    const hs = Math.hypot(this.vel.x, this.vel.z);
-    const amt = Math.min(1, hs / CONFIG.walkSpeed);
-    this.phase += hs * dt * 1.6;
-    const sw = Math.sin(this.phase) * 0.9 * amt;
     this.castAnim = Math.max(0, this.castAnim - dt * 3);
-    if (this.onGround) {
-      this.legL.rotation.x = sw; this.legR.rotation.x = -sw;
-      this.armL.rotation.x = -sw * 0.8;
-      this.armL.rotation.z = 0;
-      this.model.position.y = Math.abs(Math.sin(this.phase)) * 0.08 * amt + Math.sin(time * 2) * 0.01;
-    } else {
-      this.legL.rotation.x = 0.5; this.legR.rotation.x = -0.25;
-      this.armL.rotation.z = -0.7;
+    const b = this.m.rig.bones;
+    const hs = Math.hypot(this.vel.x, this.vel.z);
+    const raise = charging ? 1 : this.castAnim;
+    if (this.pose) {
+      // 演出の姿勢（ひざまずく等）はそのまま
+    } else if (this.flying) {
+      setRigPose(this.m, 'fly'); this.m.rig.pose = '';
+      const f = Math.min(1, hs / 30);
+      this.model.rotation.x = f * 0.75;
+      b.chest.rotation.x = -f * 0.2;
+      b.head.rotation.x = -f * 0.5;
+      b.uArmL.rotation.x = f * 0.6; b.uArmL.rotation.z = -0.3 - f * 0.2;
       this.model.position.y = 0;
+    } else {
+      this.model.rotation.x = 0;
+      const amt = Math.min(1.25, hs / CONFIG.walkSpeed);
+      this.phase += hs * dt * 1.25;
+      if (this.onGround) {
+        animateWalk(this.m, this.phase, amt, time);
+        this.model.position.y = Math.abs(Math.sin(this.phase)) * 0.04 * amt;
+      } else {
+        resetRig(this.m.rig);
+        b.thighL.rotation.x = -0.5; b.shinL.rotation.x = 0.9; b.thighR.rotation.x = 0.25; b.shinR.rotation.x = 0.4;
+        b.uArmL.rotation.z = -0.7;
+        this.model.position.y = 0;
+      }
     }
     // 右腕（杖）：詠唱中は前に掲げる
-    const raise = charging ? 1 : this.castAnim;
-    this.armR.rotation.x = lerp(this.onGround ? sw * 0.8 : 0, -1.6, raise);
-    this.armR.rotation.z = lerp(this.onGround ? 0 : 0.7, 0.15, raise);
-    this.staff.rotation.x = raise * 2.9;
+    if (!this.pose) {
+      b.uArmR.rotation.x = lerp(b.uArmR.rotation.x, -1.55, raise);
+      b.uArmR.rotation.z = lerp(b.uArmR.rotation.z, 0.12, raise);
+      b.fArmR.rotation.x = lerp(b.fArmR.rotation.x, -0.1, raise);
+    }
+    this.staff.rotation.x = raise * 1.6;
     if (this.inWater) this.model.position.y = -0.2 + Math.sin(time * 3) * 0.05;
 
     this.hurtT = Math.max(0, this.hurtT - dt);

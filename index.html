@@ -150,6 +150,9 @@
   #cutbars.on::before, #cutbars.on::after { transform: none; }
   body.cut #ui, body.cut #reticle, body.cut #crosshair { opacity: 0; pointer-events: none; }
   #dialog, #banner { z-index: 50; }
+  /* 演出中は黒い帯の上に会話を出す */
+  body.talking #actions, body.talking #focusBtn, body.talking #talkBtn, body.talking #quest, body.talking #help, body.talking #target, body.talking #flyBtn, body.talking #downBtn { opacity: 0; pointer-events: none; }
+  body.cut #dialog { bottom: calc(9vh + 10px + env(safe-area-inset-bottom, 0px)); }
   #killcount { font-size: 11px; color: #ffb09a; margin-top: 2px; }
   .advisory { margin: 10px auto 0; max-width: 560px; font-size: 12px; line-height: 1.6; color: #ffc8b8; border: 1px solid rgba(255,140,120,0.6); border-radius: 8px; padding: 8px 12px; background: rgba(60,10,10,0.5); }
   .elbtn.on { background: var(--c); box-shadow: 0 0 16px var(--c); transform: scale(1.1); }
@@ -158,6 +161,12 @@
     background: radial-gradient(circle at 50% 40%, rgba(255,255,255,0.35), var(--c) 70%); color: #fff; font-weight: 900; font-size: 15px;
     box-shadow: 0 0 22px var(--c); display: none; text-shadow: 0 1px 3px rgba(0,0,0,0.6); }
   #castBtn span { display: block; font-size: 24px; }
+  #flyBtn, #downBtn { position: fixed; right: calc(76px + env(safe-area-inset-right, 0px)); width: 62px; white-space: nowrap; padding: 0; height: 40px; border-radius: 20px; border: 2px solid rgba(255,255,255,0.8);
+    background: rgba(40,40,60,0.6); color: #fff; font-weight: 700; font-size: 13px; display: none; }
+  #flyBtn { bottom: calc(206px + env(safe-area-inset-bottom, 0px)); }
+  #downBtn { bottom: calc(256px + env(safe-area-inset-bottom, 0px)); }
+  #flyBtn.on { background: rgba(120,160,255,0.7); }
+  @media (pointer: coarse) { #flyBtn { display: block; } body.flying #downBtn { display: block; } }
   #jumpBtn { width: 60px; height: 60px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.8); background: rgba(40,40,60,0.6); color: #fff; font-weight: 700; display: none; }
   #focusBtn { position: fixed; right: calc(14px + env(safe-area-inset-right, 0px)); bottom: calc(232px + env(safe-area-inset-bottom, 0px));
     width: 54px; height: 54px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.7); background: rgba(20,20,30,0.55); color: #fff; font-weight: 700; font-size: 11px; line-height: 1.1; cursor: pointer; }
@@ -227,7 +236,7 @@
 
   /* 会話 */
   #dialog { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(720px, calc(100vw - 24px));
-    box-sizing: border-box; background: rgba(250,246,236,0.96); border: 3px solid #5a3a22; border-radius: 14px; padding: 12px 16px 14px; display: none; z-index: 30;
+    box-sizing: border-box; background: rgba(250,246,236,0.96); border: 3px solid #5a3a22; border-radius: 14px; padding: 12px 16px 14px; display: none; z-index: 50;
     box-shadow: 0 6px 30px rgba(0,0,0,0.4); cursor: pointer; }
   #dialog.show { display: block; }
   #dialog .head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
@@ -298,7 +307,7 @@
     #questToggle { font-size: 11px; }
     #minimap { width: 104px; height: 104px; }
     .topbtns button { padding: 5px 9px; font-size: 11px; }
-    #target { top: calc(112px + env(safe-area-inset-top, 0px)); width: 56vw; font-size: 11px; }
+    #target { top: calc(162px + env(safe-area-inset-top, 0px)); width: 56vw; font-size: 11px; }
     .elbtn { width: 44px; height: 44px; font-size: 15px; }
     #castBtn { width: 82px; height: 82px; }
     .elgrid .elbtn { width: 38px; height: 38px; font-size: 13px; }
@@ -360,7 +369,7 @@
     <div class="topbtns"><button id="mapBtn" class="pe" type="button">地図</button><button id="menuBtn" class="pe" type="button">メニュー</button><button id="musicBtn" class="pe" type="button" aria-label="音楽の切替">♪</button></div>
   </div>
   <div id="target"><div class="n"></div><div class="bar"><i></i></div><div class="w"></div></div>
-  <div id="help"><kbd>WASD</kbd>移動 <kbd>Shift</kbd>走る <kbd>Space</kbd>跳ぶ　<b>左クリック長押し</b>で魔力を込めて放つ　右ドラッグ視点<br>
+  <div id="help"><kbd>WASD</kbd>移動 <kbd>Shift</kbd>走る <kbd>Space</kbd>跳ぶ <kbd>V</kbd>飛ぶ（<kbd>Space</kbd>上昇 <kbd>C</kbd>下降）　<b>左クリック長押し</b>で魔力を込めて放つ　右ドラッグ視点<br>
     <kbd>1</kbd>〜<kbd>8</kbd>炎・水・氷・雷・重・樹・光・闇　<kbd>Q</kbd>オートフォーカス <kbd>Tab</kbd>狙い変更　<kbd>E</kbd>話す <kbd>M</kbd>地図 <kbd>I</kbd>メニュー <kbd>J</kbd>目的</div>
   <div id="hint"></div>
   <div id="charge"><b>0</b><div class="bar"><i></i></div>魔力を込めている…</div>
@@ -380,6 +389,8 @@
   </div>
   <button id="focusBtn" class="pe on" type="button">◎<br>AUTO</button>
   <button id="talkBtn" class="pe" type="button">話す</button>
+  <button id="flyBtn" class="pe" type="button">飛ぶ</button>
+  <button id="downBtn" class="pe" type="button">下降</button>
 </div>
 <div id="reticle"></div>
 <div id="crosshair"><i></i><i></i><i></i><i></i></div>
@@ -403,6 +414,7 @@
 <script src="js/sound.js"></script>
 <script src="js/world.js"></script>
 <script src="js/build.js"></script>
+<script src="js/body.js"></script>
 <script src="js/actors.js"></script>
 <script src="js/magic.js"></script>
 <script src="js/spells.js"></script>

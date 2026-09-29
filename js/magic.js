@@ -821,8 +821,8 @@ function updateAura(dt, t) {
   auraMat.uniforms.time.value = t;
   auraMat.uniforms.strength.value = 0.35 + (MAGIC.charging ? 0.4 : 0) + auraPulse * 0.5;
   const p = player.pos;
-  auraMesh.visible = auraRing.visible = player.root.visible;
-  if (!player.root.visible) return;
+  auraMesh.visible = auraRing.visible = player.root.visible && !CUT.active;
+  if (!auraMesh.visible) return;
   auraMesh.position.set(p.x, p.y + 1.1 + (R - 1) * 0.45, p.z);
   auraMesh.scale.set(R * 0.75, R * 1.35, R * 0.75);
   auraRing.position.set(p.x, groundAt(p.x, p.z, p.y) + 0.06, p.z);
