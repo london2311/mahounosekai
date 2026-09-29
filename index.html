@@ -152,6 +152,17 @@
   #reticle::after { transform: translateX(-50%) rotate(90deg); }
   @keyframes spin { from { rotate: 0deg; } to { rotate: 360deg; } }
 
+  #crosshair { --c: #ff8a3a; position: fixed; left: 50%; top: 32%; width: 30px; height: 30px; margin: -15px 0 0 -15px; pointer-events: none; display: none; }
+  #crosshair::before { content: ""; position: absolute; inset: 0; border: 2px solid var(--c); border-radius: 50%; opacity: 0.85;
+    box-shadow: 0 0 6px var(--c), inset 0 0 4px rgba(0,0,0,0.4); transition: transform 0.15s; }
+  #crosshair::after { content: ""; position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%;
+    background: #fff; box-shadow: 0 0 4px var(--c), 0 0 0 1px rgba(0,0,0,0.5); }
+  #crosshair i { position: absolute; background: var(--c); box-shadow: 0 0 3px rgba(0,0,0,0.6); }
+  #crosshair i:nth-child(1) { left: 50%; top: -9px; width: 2px; height: 8px; margin-left: -1px; }
+  #crosshair i:nth-child(2) { left: 50%; bottom: -9px; width: 2px; height: 8px; margin-left: -1px; }
+  #crosshair i:nth-child(3) { top: 50%; left: -9px; height: 2px; width: 8px; margin-top: -1px; }
+  #crosshair i:nth-child(4) { top: 50%; right: -9px; height: 2px; width: 8px; margin-top: -1px; }
+  #crosshair.charging::before { transform: scale(1.35); animation: spin 1.2s linear infinite; border-style: dashed; }
   #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
   .num { position: absolute; left: 0; top: 0; font-weight: 900; font-size: 20px; text-shadow: 0 0 3px #000, 0 2px 3px #000; white-space: nowrap; }
   .num.weak { font-size: 26px; }
@@ -314,6 +325,7 @@
   <button id="talkBtn" class="pe" type="button">話す</button>
 </div>
 <div id="reticle"></div>
+<div id="crosshair"><i></i><i></i><i></i><i></i></div>
 <div id="labels"></div>
 <div id="toasts"></div>
 <div id="banner"><div class="t"></div><div class="s"></div></div>

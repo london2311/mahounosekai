@@ -359,7 +359,14 @@ function updateLabels(dt) {
     el.style.transform = `translate(${p[0]}px, ${p[1]}px) translate(-50%, -50%)`;
     el.firstChild.style.width = (e.hp / e.maxHp * 100) + '%';
   });
-  // 照準
+  // 照準（狙いがないときは画面の十字、あるときは敵の上の輪）
+  const ch = $('crosshair');
+  const showCross = !FOCUS.target && GAME.started && !GAME.paused && !GAME.dead;
+  ch.style.display = showCross ? 'block' : 'none';
+  if (showCross) {
+    ch.style.setProperty('--c', ELEM[STATE.element].css);
+    ch.classList.toggle('charging', MAGIC.charging);
+  }
   const t = FOCUS.target, ret = $('reticle');
   const p = t && project(t.pos.x, t.pos.y + t.height * 0.5, t.pos.z);
   if (p) {

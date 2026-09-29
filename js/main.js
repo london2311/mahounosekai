@@ -361,6 +361,7 @@ function frame(dt, t) {
   updateCamera(dt, false);
   updateChunks(player.pos.x, player.pos.z, 1);
   updateAura(dt, t);
+  updateAimFx(dt, t, true);
   updateParticles(dt);
   updateFx(dt);
   updateLights(dt);
