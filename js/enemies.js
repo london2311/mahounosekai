@@ -24,7 +24,40 @@ const ETYPES = {
   ogre:     { name: 'オーガ',           lv: 18, hp: 2800,  atk: 75,  speed: 3.8, exp: 400,  gold: 200, aggro: 20, reach: 3.6, cd: 2.2, weak: 'ice', model: 'ogre' },
   wyvern:   { name: 'ワイバーン',       lv: 21, hp: 3600,  atk: 85,  speed: 6.5, exp: 700,  gold: 320, aggro: 30, reach: 3.5, cd: 2.4, weak: 'ice', resist: 'fire', model: 'wyvern', fly: 5, ranged: { range: 30, speed: 18, color: 0xff6a2a } },
   guardian: { name: '遺跡の番人',       lv: 10, hp: 2600,  atk: 40,  speed: 2.7, exp: 600,  gold: 500, aggro: 30, reach: 4.5, cd: 2.4, weak: 'thunder', resist: 'fire', model: 'guardian', boss: true },
+  // 帝国軍（ひとりひとり動く兵）
+  imp_soldier: { name: '帝国兵', lv: 30, hp: 900, atk: 90, speed: 4.2, exp: 12, gold: 8, aggro: 26, reach: 1.9, cd: 1.3, model: 'imp', human: true },
+  imp_knight:  { name: '帝国騎士', lv: 38, hp: 3200, atk: 220, speed: 3.8, exp: 40, gold: 30, aggro: 26, reach: 2.2, cd: 1.6, model: 'impKnight', human: true },
+  imp_mage:    { name: '帝国魔導兵', lv: 40, hp: 2200, atk: 180, speed: 3.4, exp: 40, gold: 30, aggro: 34, reach: 1.8, cd: 2.2, model: 'impMage', human: true, ranged: { range: 30, speed: 20, color: 0xb04aff } },
+  // 帝国十将
+  g10: { name: '第十将「嗤う屠殺者」グラウス', lv: 60, hp: 60000, atk: 900, speed: 4.6, exp: 3000, gold: 3000, aggro: 22, reach: 2.8, cd: 1.6, model: 'general', boss: true, general: 10, human: true },
+  g9:  { name: '第九将「鉄壁」バルドゥル', lv: 64, hp: 180000, atk: 1500, speed: 3.2, exp: 6000, gold: 6000, aggro: 40, reach: 3.6, cd: 2.2, model: 'general', boss: true, general: 9, human: true },
+  g8:  { name: '第八将「焼き払う者」イグナーツ', lv: 68, hp: 300000, atk: 1800, speed: 4.2, exp: 9000, gold: 8000, aggro: 40, reach: 3, cd: 1.9, model: 'general', boss: true, general: 8, human: true, ranged: { range: 40, speed: 24, color: 0xff5a1a } },
+  g7:  { name: '第七将「魔女狩り」ヘルミーネ', lv: 72, hp: 420000, atk: 2200, speed: 4.4, exp: 12000, gold: 10000, aggro: 44, reach: 2.6, cd: 1.8, model: 'general', boss: true, general: 7, human: true, ranged: { range: 44, speed: 26, color: 0xc04aff } },
+  g6:  { name: '第六将「山崩し」ドルガン', lv: 76, hp: 650000, atk: 3200, speed: 3.0, exp: 16000, gold: 12000, aggro: 40, reach: 4.8, cd: 2.4, model: 'general', boss: true, general: 6, human: true },
+  g5:  { name: '第五将「双剣」レイヴン', lv: 80, hp: 560000, atk: 2600, speed: 8.5, exp: 18000, gold: 14000, aggro: 46, reach: 2.4, cd: 0.9, model: 'general', boss: true, general: 5, human: true },
+  g4:  { name: '第四将「墓暴き」モルテ', lv: 74, hp: 400000, atk: 2000, speed: 3.6, exp: 14000, gold: 11000, aggro: 44, reach: 2.6, cd: 2.0, model: 'general', boss: true, general: 4, human: true, ranged: { range: 40, speed: 18, color: 0x7affc0 }, summon: 'skeleton' },
+  g3:  { name: '第三将「竜騎」ジークリンデ', lv: 85, hp: 850000, atk: 3500, speed: 5.2, exp: 24000, gold: 18000, aggro: 50, reach: 3.2, cd: 1.7, model: 'general', boss: true, general: 3, human: true, ranged: { range: 48, speed: 34, color: 0xffe0a0 } },
+  g2:  { name: '第二将「雷帝」アウグスト', lv: 90, hp: 1250000, atk: 4200, speed: 4.6, exp: 32000, gold: 24000, aggro: 52, reach: 3, cd: 1.8, model: 'general', boss: true, general: 2, human: true, bolt: true },
+  g1:  { name: '第一将「剣聖」ヴィルヘルム', lv: 95, hp: 1900000, atk: 5200, speed: 6.2, exp: 45000, gold: 30000, aggro: 50, reach: 3.2, cd: 1.1, model: 'general', boss: true, general: 1, human: true },
+  emperor: { name: 'ガルヴァス皇帝ヴァルゼル', lv: 96, hp: 1500000, atk: 4800, speed: 4.4, exp: 40000, gold: 40000, aggro: 40, reach: 3, cd: 1.6, model: 'general', boss: true, human: true },
+  zenon:   { name: '宰相ゼノン（虚無の使徒）', lv: 99, hp: 3200000, atk: 6000, speed: 4.0, exp: 90000, gold: 60000, aggro: 50, reach: 3, cd: 1.6, model: 'general', boss: true, human: true, ranged: { range: 50, speed: 26, color: 0x6a1aff }, summon: 'ghost' },
   dragon:   { name: '古竜ヴァルグ',     lv: 25, hp: 25000, atk: 90,  speed: 4.2, exp: 8000, gold: 5000, aggro: 45, reach: 7.5, cd: 2.2, weak: 'ice', resist: 'fire', model: 'dragon', boss: true, ranged: { range: 40, speed: 22, color: 0xff5a1a } }
+};
+
+/* ---------- 帝国十将の姿 ---------- */
+const GENERAL_LOOKS = {
+  g10: { scale: 1.55, look: { skin: 0xc8a080, hairStyle: 'bald', hair: 0, top: 0x3a1a14, apron: 0x6a0a0a, armor: undefined, cape: undefined, hat: undefined, prop: 'axe', bulk: 1.5, blood: true, eyeGlow: 0xff3a2a } },
+  g9:  { scale: 1.9, look: { armor: 0x4a4a52, top: 0x6a1414, hat: 'helmet', hatColor: 0x3a3a42, cape: 0x6a1414, prop: 'spear', bulk: 1.6 } },
+  g8:  { scale: 1.55, look: { armor: 0x6a1a0a, top: 0x3a0a04, hat: 'helmet', hatColor: 0x5a1a0a, cape: 0xa02a0a, prop: 'staffRed', eyeGlow: 0xff8a2a } },
+  g7:  { scale: 1.45, look: { dress: 0x2a0a3a, top: 0x2a0a3a, hat: 'witch', hatColor: 0x1a0a22, hairStyle: 'long', hair: 0xe8e0f0, prop: 'staffRed', skin: 0xe8d0c0, cape: undefined, armor: undefined } },
+  g6:  { scale: 2.4, look: { armor: 0x5a4a3a, top: 0x3a2a1a, hat: undefined, hairStyle: 'short', hair: 0x6a3a1a, beard: 0x6a3a1a, prop: 'hammer', bulk: 1.8, cape: undefined } },
+  g5:  { scale: 1.35, look: { armor: 0x1a1a22, top: 0x0a0a10, hat: 'hood', hatColor: 0x0a0a10, cape: 0x1a1a22, prop: 'sword', eyeGlow: 0xff2a2a } },
+  g4:  { scale: 1.5, look: { dress: 0x2a3a2a, top: 0x2a3a2a, hat: 'hood', hatColor: 0x1a2a1a, prop: 'staffRed', skin: 0xb8c0a8, eyeGlow: 0x7affc0, bent: true } },
+  g3:  { scale: 1.5, look: { armor: 0xc8c0a0, top: 0x6a1a1a, hat: 'helmet', hatColor: 0xd9b34a, hairStyle: 'long', hair: 0xe8c86a, prop: 'spear', cape: 0x8a1a1a } },
+  g2:  { scale: 1.65, look: { armor: 0x2a2a3a, top: 0x1a1a4a, hat: 'crown', hatColor: 0xe8d84a, cape: 0x2a2a6a, prop: 'sword', eyeGlow: 0xfff08a, beard: 0xd8d8d8, hair: 0xd8d8d8 } },
+  g1:  { scale: 1.6, look: { armor: 0xd8dce0, top: 0x2a2a30, hat: undefined, hairStyle: 'long', hair: 0xc8c8d0, cape: 0x1a1a1a, prop: 'sword', bulk: 1.1 } },
+  emperor: { scale: 1.6, look: Object.assign({}, { armor: 0x2a2a30, hat: 'crown', hatColor: 0x1a1a1a, cape: 0x8a0a0a, top: 0x2a2a30, bulk: 1.25, hair: 0x1c1c24, beard: 0x1c1c24, prop: 'sword' }) },
+  zenon: { scale: 1.7, look: { dress: 0x14081a, top: 0x14081a, hat: 'hood', hatColor: 0x0a0010, prop: 'staffRed', skin: 0xd8c0b0, eyeGlow: 0xb040ff } }
 };
 
 /* ---------- 魔物の姿 ---------- */
@@ -117,6 +150,18 @@ function buildEnemyModel(type, T) {
       for (const s of [-1, 1]) { B.sphere(s * 1.1, 0.8, 0.6, 0.35, c, 1.2, 0.8, 1); B.box(s * 0.25, 1.0, 0.6, 0.06, 0.3, 0.06, c); B.sphere(s * 0.25, 1.2, 0.6, 0.08, 0x1a1a1a); }
       for (let k = 0; k < 3; k++) for (const s of [-1, 1]) B.box(s * 1.0, 0.35, -0.4 + k * 0.35, 0.8, 0.08, 0.1, c, 0, 0, s * 0.6);
       r.height = 1.2; r.radius = 1.1; break;
+    }
+    case 'imp':
+      humanoid(lookFor('imperial', 'imp' + Math.random(), { top: 0x7a1414, armor: 0x3a3a44, hatColor: 0x2a2a30, eyeGlow: undefined }), 1.05); break;
+    case 'impKnight':
+      humanoid(lookFor('imperial', 'impk' + Math.random(), { top: 0x5a0a0a, armor: 0x2a2a30, hatColor: 0x1a1a1e, prop: 'sword', cape: 0x5a0a0a, bulk: 1.2 }), 1.2); break;
+    case 'impMage':
+      humanoid(lookFor('chancellor', 'impm' + Math.random(), { dress: 0x2a0a1a, top: 0x2a0a1a, hatColor: 0x1a0a14, prop: 'staffRed', skin: 0xd9a47a }), 1.05); break;
+    case 'general': {
+      const L = GENERAL_LOOKS[type] || {};
+      humanoid(Object.assign(lookFor('officer', type), L.look), L.scale || 1.5);
+      r.height = 2.2 * (L.scale || 1.5); r.radius = 0.6 * (L.scale || 1.5);
+      break;
     }
     case 'golem': case 'guardian': {
       const boss = T.model === 'guardian';
@@ -216,7 +261,8 @@ function makeEnemy(type, x, z, opt = {}) {
     pos: m.root.position, home: { x, z }, hp: T.hp, maxHp: T.hp, alive: true, active: false,
     state: 'idle', timer: Math.random() * 3, facing: Math.random() * 6.28, aggro: false,
     wander: null, burn: 0, burnTick: 0, burnDps: 0, slow: 0, freeze: 0, stun: 0, flash: 0,
-    deathT: 0, respawn: 0, dungeon: !!opt.dungeon, phase: Math.random() * 10, lastHit: -99, noRespawn: !!opt.noRespawn
+    deathT: 0, respawn: 0, dungeon: !!opt.dungeon, phase: Math.random() * 10, lastHit: -99, noRespawn: !!opt.noRespawn || !!T.human,
+    zone: opt.zone || null, snout: m.snout
   };
   ENEMIES.push(en);
   return en;
@@ -326,7 +372,34 @@ function enemyAI(en, dt, t, dx, dz, dist) {
   else e.setHex(0);
   if (frozen || en.stun > 0) { en.state = en.state === 'windup' ? 'recover' : en.state; en.timer = Math.max(en.timer, 0.3); animateEnemy(en, dt, t, 0, true); return; }
 
-  if (!en.aggro && dist < T.aggro && !GAME.dead) { en.aggro = true; en.state = 'chase'; }
+  if (!en.aggro && dist < T.aggro && !GAME.dead && !CUT.active && (!en.dormant || en.dormant())) {
+    en.aggro = true; en.state = 'chase';
+    if (T.general !== undefined || T.boss) onBossEngage(en);
+  }
+  if (T.summon && en.aggro) {
+    en.summonT = (en.summonT ?? 6) - dt;
+    if (en.summonT <= 0) {
+      en.summonT = 14;
+      for (let k = 0; k < 4; k++) { const a = k * 1.57 + Math.random(); const s = makeEnemy(T.summon, en.pos.x + Math.cos(a) * 5, en.pos.z + Math.sin(a) * 5, { noRespawn: true, zone: en.zone, dungeon: en.dungeon }); s.aggro = true; s.state = 'chase'; s.summoned = true; }
+      burst(en.pos.x, en.pos.y + 1, en.pos.z, 60, 6, 1, 0.6, T.ranged ? T.ranged.color : 0x7affc0, -1);
+      popNumber(en.pos.x, en.pos.y + en.height + 1, en.pos.z, '召喚', '#b88aff', '');
+    }
+  }
+  if (T.bolt && en.aggro) {
+    en.boltT = (en.boltT ?? 4) - dt;
+    if (en.boltT <= 0) {
+      en.boltT = 3.2;
+      const bx = player.pos.x, bz = player.pos.z;
+      telegraphRing(bx, bz, 5, 1.0);
+      setTimeout(() => {
+        if (!en.alive) return;
+        const p = new THREE.Vector3(bx, groundAt(bx, bz) + 0.5, bz);
+        lightningFx(p.clone().add(new THREE.Vector3(0, 30, 0)), p, 0.25, 3);
+        SOUND.thunder(2);
+        if (Math.hypot(player.pos.x - bx, player.pos.z - bz) < 5.5) damagePlayer(T.atk * 1.2, en);
+      }, 1000);
+    }
+  }
   const homeD = Math.hypot(en.pos.x - en.home.x, en.pos.z - en.home.z);
   if (en.aggro && (dist > T.aggro * 2.8 || homeD > (T.boss ? 60 : 75) || GAME.dead)) { en.aggro = false; en.state = 'return'; }
 
@@ -353,6 +426,10 @@ function enemyAI(en, dt, t, dx, dz, dist) {
         mvx = dx / dist; mvz = dz / dist; moving = 1;
       }
     }
+  } else if (en.scene) {
+    // 捕虜を嬲っている間はその場を離れない
+    en.facing = angleLerp(en.facing, Math.atan2(en.scene.x - en.pos.x, en.scene.z - en.pos.z), Math.min(1, dt * 4));
+    en.tormentT = Math.max(0, (en.tormentT || 0) - dt);
   } else {
     if (en.state === 'return') {
       const hx = en.home.x - en.pos.x, hz = en.home.z - en.pos.z, hd = Math.hypot(hx, hz);
@@ -382,7 +459,7 @@ function enemyAI(en, dt, t, dx, dz, dist) {
     const nx = en.pos.x + mvx * s * dt, nz = en.pos.z + mvz * s * dt;
     let ok = true;
     if (!T.fly && waterAt(nx, nz) - groundAt(nx, nz) > 0.9) ok = false;
-    if (!en.dungeon && inSafeZone(nx, nz)) ok = false;
+    if (!en.dungeon && !T.human && inSafeZone(nx, nz)) ok = false;
     if (ok) { en.pos.x = nx; en.pos.z = nz; }
     if (!T.boss) resolveCollisions(en.pos, en.radius * 0.6);
   }
@@ -417,7 +494,7 @@ function animateEnemy(en, dt, t, speed, still) {
   if (p.legL) {
     const sw = Math.sin(en.phase * 2.2) * 0.8 * Math.min(1, speed / 3);
     p.legL.rotation.x = sw; p.legR.rotation.x = -sw;
-    m.rotation.x = -wind * 0.3;
+    m.rotation.x = -wind * 0.3 + (en.tormentT > 0 ? 0.45 * Math.sin(en.tormentT / 0.35 * Math.PI) : 0);
   }
   if (p.wingL) {
     const f = Math.sin(t * (T.model === 'bat' ? 18 : T.model === 'harpy' ? 9 : 5) + en.phase) * 0.7;
@@ -463,6 +540,7 @@ function enemyAttack(en, dist) {
    ========================================================= */
 function damageEnemy(en, amount, elem, from, isDot) {
   if (!en.alive) return;
+  if (en.dormant && !en.dormant()) { if (!isDot && GAME.time - (en.barrierMsg || -9) > 1) { en.barrierMsg = GAME.time; popNumber(en.pos.x, en.pos.y + en.height + 0.3, en.pos.z, '結界', '#b88aff', 'resist'); } return; }
   let mult = 1, tag = '';
   if (elem && en.T.weak === elem) { mult = 1.6; tag = 'weak'; }
   else if (elem && en.T.resist === elem) { mult = 0.5; tag = 'resist'; }
@@ -481,7 +559,7 @@ function damageEnemy(en, amount, elem, from, isDot) {
     const kx = en.pos.x - from.x, kz = en.pos.z - from.z, kd = Math.hypot(kx, kz) || 1;
     const k = Math.min(3, amount / en.maxHp * 4);
     const nx = en.pos.x + kx / kd * k, nz = en.pos.z + kz / kd * k;
-    if (en.dungeon || !inSafeZone(nx, nz)) { en.pos.x = nx; en.pos.z = nz; }
+    if (en.dungeon || en.T.human || !inSafeZone(nx, nz)) { en.pos.x = nx; en.pos.z = nz; }
   }
   if (!isDot && GAME.time - (UI.lastHitSnd || 0) > 0.06) { UI.lastHitSnd = GAME.time; SOUND.hit(); }
   if (en.hp <= 0) killEnemy(en);
@@ -503,5 +581,18 @@ function killEnemy(en) {
   if (T.boss) {
     shakeCamera(0.6);
     for (let k = 0; k < 6; k++) setTimeout(() => burst(en.pos.x, en.pos.y + en.height * Math.random(), en.pos.z, 60, 10, 1.2, 1, k % 2 ? 0xffe08a : 0xffffff), k * 150);
+  }
+}
+
+/* ---------- 十将・ボスとの遭遇 ---------- */
+function onBossEngage(en) {
+  if (en.engaged) return;
+  en.engaged = true;
+  const line = BOSS_LINES[en.type];
+  if (line && line.intro) {
+    setTimeout(() => {
+      if (!en.alive) return;
+      openDialog(line.intro.map(t => (Array.isArray(t) ? { who: t[0], t: t[1] } : { who: en.T.name.replace(/^.*」/, ''), role: en.T.name.match(/^[^「]*「[^」]*」/) ? en.T.name.match(/^[^「]*「[^」]*」/)[0] : '', t })), null);
+    }, 200);
   }
 }

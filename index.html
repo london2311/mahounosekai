@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>マホウノセカイ</title>
+<title>還魂の大魔導</title>
 <meta name="description" content="炎・氷・雷の小さな魔法と、底なしのオーラで旅する、ブラウザで遊べるオープンワールドRPG。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -129,6 +129,29 @@
   .elbtn { width: 50px; height: 50px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.7); color: #fff; font-weight: 900; font-size: 17px;
     background: rgba(20,20,30,0.55); cursor: pointer; transition: transform 0.1s; position: relative; }
   .elbtn[data-el="fire"] { --c: #ff7a2a; } .elbtn[data-el="ice"] { --c: #5ac0ff; } .elbtn[data-el="thunder"] { --c: #f2c82a; }
+  .elbtn[data-el="water"] { --c: #2a8aff; } .elbtn[data-el="gravity"] { --c: #8a5aef; } .elbtn[data-el="wood"] { --c: #4aa83a; }
+  .elbtn[data-el="light"] { --c: #e8c84a; } .elbtn[data-el="dark"] { --c: #7a2ac8; }
+  .elgrid { display: grid; grid-template-columns: repeat(4, auto); gap: 7px; grid-column: 1 / 3; justify-self: end; }
+  .elgrid .elbtn { width: 44px; height: 44px; font-size: 15px; }
+  /* 吹き出し（捕らわれた人の声／嘲る兵） */
+  .bubble { position: absolute; left: 0; top: 0; max-width: 220px; padding: 6px 10px; border-radius: 10px; font-size: 13px; line-height: 1.4; font-weight: 700;
+    white-space: normal; pointer-events: none; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+  .bubble.cry { background: rgba(240,236,228,0.94); color: #3a1a1a; border: 2px solid #8a2a2a; font-style: italic; }
+  .bubble.taunt { background: rgba(40,10,10,0.92); color: #ffd2c8; border: 2px solid #c8321e; }
+  /* 語り（プロローグ） */
+  #narr { position: fixed; inset: 0; background: #050303; color: #f2e8d8; display: none; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px; text-align: center; z-index: 60; font-size: clamp(15px, 3.6vw, 21px); line-height: 2; letter-spacing: 0.08em; }
+  #narr.show { display: flex; }
+  #narr p { margin: 0; opacity: 0; transition: opacity 1.4s; max-width: 760px; }
+  #narr p.on { opacity: 1; }
+  #narr .skip { position: absolute; bottom: 20px; right: 20px; font-size: 12px; opacity: 0.6; background: none; border: 1px solid #f2e8d8; color: #f2e8d8; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+  #cutbars::before, #cutbars::after { content: ''; position: fixed; left: 0; right: 0; height: 9vh; background: #000; z-index: 40; transition: transform 0.8s; }
+  #cutbars::before { top: 0; transform: translateY(-100%); } #cutbars::after { bottom: 0; transform: translateY(100%); }
+  #cutbars.on::before, #cutbars.on::after { transform: none; }
+  body.cut #ui, body.cut #reticle, body.cut #crosshair { opacity: 0; pointer-events: none; }
+  #dialog, #banner { z-index: 50; }
+  #killcount { font-size: 11px; color: #ffb09a; margin-top: 2px; }
+  .advisory { margin: 10px auto 0; max-width: 560px; font-size: 12px; line-height: 1.6; color: #ffc8b8; border: 1px solid rgba(255,140,120,0.6); border-radius: 8px; padding: 8px 12px; background: rgba(60,10,10,0.5); }
   .elbtn.on { background: var(--c); box-shadow: 0 0 16px var(--c); transform: scale(1.1); }
   .elbtn small { position: absolute; bottom: -2px; right: 2px; font-size: 9px; opacity: 0.8; }
   #castBtn { --c: #ff7a2a; width: 92px; height: 92px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.9);
@@ -136,13 +159,13 @@
     box-shadow: 0 0 22px var(--c); display: none; text-shadow: 0 1px 3px rgba(0,0,0,0.6); }
   #castBtn span { display: block; font-size: 24px; }
   #jumpBtn { width: 60px; height: 60px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.8); background: rgba(40,40,60,0.6); color: #fff; font-weight: 700; display: none; }
-  #focusBtn { position: fixed; right: calc(14px + env(safe-area-inset-right, 0px)); bottom: calc(190px + env(safe-area-inset-bottom, 0px));
+  #focusBtn { position: fixed; right: calc(14px + env(safe-area-inset-right, 0px)); bottom: calc(232px + env(safe-area-inset-bottom, 0px));
     width: 54px; height: 54px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.7); background: rgba(20,20,30,0.55); color: #fff; font-weight: 700; font-size: 11px; line-height: 1.1; cursor: pointer; }
   #focusBtn.on { background: rgba(232,60,60,0.8); box-shadow: 0 0 12px rgba(255,80,80,0.8); }
-  #talkBtn { position: fixed; right: calc(14px + env(safe-area-inset-right, 0px)); bottom: calc(256px + env(safe-area-inset-bottom, 0px));
+  #talkBtn { position: fixed; right: calc(14px + env(safe-area-inset-right, 0px)); bottom: calc(300px + env(safe-area-inset-bottom, 0px));
     padding: 12px 18px; border-radius: 26px; border: 2px solid #fff; background: rgba(232,192,74,0.95); color: #3a2a0a; font-weight: 900; font-size: 15px; display: none; }
   #talkBtn.show { display: block; }
-  @media (pointer: fine) { #talkBtn.show { display: none; } #actions { bottom: 16px; } #focusBtn { bottom: 84px; } }
+  @media (pointer: fine) { #talkBtn.show { display: none; } #actions { bottom: 16px; } #focusBtn { bottom: 124px; } }
   @media (pointer: coarse) {
     #castBtn, #jumpBtn { display: block; }
     #help { display: none; }
@@ -275,11 +298,13 @@
     #questToggle { font-size: 11px; }
     #minimap { width: 104px; height: 104px; }
     .topbtns button { padding: 5px 9px; font-size: 11px; }
-    #target { top: auto; bottom: calc(210px + env(safe-area-inset-bottom, 0px)); width: 60vw; font-size: 11px; }
+    #target { top: calc(112px + env(safe-area-inset-top, 0px)); width: 56vw; font-size: 11px; }
     .elbtn { width: 44px; height: 44px; font-size: 15px; }
     #castBtn { width: 82px; height: 82px; }
-    #focusBtn { bottom: calc(176px + env(safe-area-inset-bottom, 0px)); width: 48px; height: 48px; }
-    #talkBtn { bottom: calc(236px + env(safe-area-inset-bottom, 0px)); }
+    .elgrid .elbtn { width: 38px; height: 38px; font-size: 13px; }
+    .elgrid { gap: 6px; }
+    #focusBtn { bottom: calc(202px + env(safe-area-inset-bottom, 0px)); width: 48px; height: 48px; }
+    #talkBtn { bottom: calc(262px + env(safe-area-inset-bottom, 0px)); }
     #dialog .text { font-size: 14px; }
     #toasts { top: auto; bottom: calc(260px + env(safe-area-inset-bottom, 0px)); }
   }
@@ -287,6 +312,8 @@
     #quest { top: calc(8px + env(safe-area-inset-top, 0px)); left: auto; right: calc(124px + env(safe-area-inset-right, 0px)); width: 190px; }
     #target { bottom: auto; top: 8px; width: 34vw; }
     #toasts { bottom: auto; top: 60px; }
+    .elgrid { grid-template-columns: repeat(8, auto); gap: 5px; }
+    .elgrid .elbtn { width: 34px; height: 34px; font-size: 12px; }
     #focusBtn { bottom: 150px; }
     #talkBtn { right: calc(76px + env(safe-area-inset-right, 0px)); bottom: 150px; }
   }
@@ -299,17 +326,18 @@
 </head>
 <body>
 <div id="loading">
-  <div class="logo">マホウノセカイ</div>
-  <div class="sublogo">— 灯火の魔法使い —</div>
+  <div class="logo">還魂の大魔導</div>
+  <div class="sublogo">— 星墜としの帰還 —</div>
   <div class="loadwrap"><div id="loadbar"></div></div>
   <div id="loadmsg">読み込み中…</div>
 </div>
 <div id="title">
-  <div class="logo">マホウノセカイ</div>
-  <div class="sublogo">— 灯火の魔法使い —</div>
-  <p class="story">千年前、大魔導士アルマは「虚無の王」を三つの星晶で封じた。<br>
-  その封印が揺らぎはじめた時代——はじまりの丘の焚き火のそばで、<br>記憶を失ったひとりの見習い魔法使いが目を覚ます。<br>
-  手に宿るのは、炎・氷・雷の小さな魔法だけ。けれど、その器には底がなかった。</p>
+  <div class="logo">還魂の大魔導</div>
+  <div class="sublogo">— 星墜としの帰還 —</div>
+  <p class="story">五年前に病で死んだ王国魔法師団長、レグルス・アルスター。<br>
+  三十倍の帝国軍に蹂躙され、陥落寸前の王都で——<br>王女セシリアは己の命と引き換えに、禁術「還魂の儀」で彼を呼び戻した。<br>
+  炎・水・氷・雷・重力・樹木・光・闇。あらゆる魔法を極めた男の、反撃が始まる。</p>
+  <p class="advisory">⚠ この作品には、戦争による流血・遺体・部位欠損・捕虜への暴行など、残酷な描写が含まれます。</p>
   <div class="btns">
     <button id="newBtn" type="button">はじめから</button>
     <button id="continueBtn" class="sub" type="button" disabled>つづきから</button>
@@ -318,11 +346,12 @@
 
 <div id="ui">
   <div id="hud">
-    <div id="place">はじまりの丘</div>
+    <div id="place">王都アルディア</div>
     <div class="row2"><span>Lv <span id="lv">1</span></span><span><span id="gold">0</span> G</span></div>
     <div class="bar"><i id="hpbar"></i><b>HP</b><span id="hptxt"></span></div>
     <div class="bar"><i id="mpbar"></i><b>魔力</b><span id="mptxt"></span></div>
     <div class="xp"><div id="expbar"></div></div>
+    <div id="killcount"></div>
   </div>
   <div id="quest"><button id="questToggle" class="pe" type="button" aria-expanded="true"><span class="dot"></span>📜 目的<span class="arrow">▼</span></button>
     <div id="questBody"><div id="qtitle"></div><div id="qobj"></div><div id="qdist"></div></div></div>
@@ -332,14 +361,19 @@
   </div>
   <div id="target"><div class="n"></div><div class="bar"><i></i></div><div class="w"></div></div>
   <div id="help"><kbd>WASD</kbd>移動 <kbd>Shift</kbd>走る <kbd>Space</kbd>跳ぶ　<b>左クリック長押し</b>で魔力を込めて放つ　右ドラッグ視点<br>
-    <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd>炎・氷・雷　<kbd>Q</kbd>オートフォーカス <kbd>Tab</kbd>狙い変更　<kbd>E</kbd>話す <kbd>M</kbd>地図 <kbd>I</kbd>メニュー <kbd>J</kbd>目的</div>
+    <kbd>1</kbd>〜<kbd>8</kbd>炎・水・氷・雷・重・樹・光・闇　<kbd>Q</kbd>オートフォーカス <kbd>Tab</kbd>狙い変更　<kbd>E</kbd>話す <kbd>M</kbd>地図 <kbd>I</kbd>メニュー <kbd>J</kbd>目的</div>
   <div id="hint"></div>
   <div id="charge"><b>0</b><div class="bar"><i></i></div>魔力を込めている…</div>
   <div id="actions">
-    <div class="elrow">
+    <div class="elgrid">
       <button class="elbtn pe" data-el="fire" type="button">炎<small>1</small></button>
-      <button class="elbtn pe" data-el="ice" type="button">氷<small>2</small></button>
-      <button class="elbtn pe" data-el="thunder" type="button">雷<small>3</small></button>
+      <button class="elbtn pe" data-el="water" type="button">水<small>2</small></button>
+      <button class="elbtn pe" data-el="ice" type="button">氷<small>3</small></button>
+      <button class="elbtn pe" data-el="thunder" type="button">雷<small>4</small></button>
+      <button class="elbtn pe" data-el="gravity" type="button">重<small>5</small></button>
+      <button class="elbtn pe" data-el="wood" type="button">樹<small>6</small></button>
+      <button class="elbtn pe" data-el="light" type="button">光<small>7</small></button>
+      <button class="elbtn pe" data-el="dark" type="button">闇<small>8</small></button>
     </div>
     <button id="jumpBtn" class="pe" type="button">跳ぶ</button>
     <button id="castBtn" class="pe" type="button"><span>炎</span>詠唱</button>
@@ -357,7 +391,9 @@
 <div id="panel"></div>
 <div id="hurt"></div>
 <div id="dead">力尽きた…</div>
-<div id="chapter"><div class="c1">第一章</div><div class="c2">「灯火の魔法使い」完</div><div class="c3">— 第二章につづく —</div></div>
+<div id="chapter"><div class="c1">序章</div><div class="c2">「還魂」完</div><div class="c3"></div></div>
+<div id="cutbars"></div>
+<div id="narr"><p></p><button class="skip pe" type="button">スキップ ▶▶</button></div>
 <div id="flash"></div>
 <div id="fade"></div>
 <div id="joy"><div id="joyKnob"></div></div>
@@ -369,9 +405,13 @@
 <script src="js/build.js"></script>
 <script src="js/actors.js"></script>
 <script src="js/magic.js"></script>
+<script src="js/spells.js"></script>
+<script src="js/army.js"></script>
 <script src="js/enemies.js"></script>
+<script src="js/capital.js"></script>
 <script src="js/npcs.js"></script>
 <script src="js/story.js"></script>
+<script src="js/cutscene.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/main.js"></script>
 </body>

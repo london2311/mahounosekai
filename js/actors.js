@@ -74,6 +74,11 @@ function buildHumanoid(o) {
   if (o.apron) B.box(0, 1.0, 0.24 * bw, 0.55 * bw, 0.9, 0.05, o.apron);
   if (o.cape) B.box(0, 1.15, -0.26 * bw, 0.82 * bw, 1.35, 0.06, o.cape, 0, -0.08);
   if (o.shawl) B.box(0, 1.55, 0, 0.84 * bw, 0.3, 0.5 * bw, o.shawl);
+  if (o.blood) {
+    const R = mulberry32(hashStr(String(o.top) + String(o.skin)));
+    for (let k = 0; k < 6; k++) B.box((R() - 0.5) * 0.7 * bw, 0.9 + R() * 0.8, 0.23 * bw + 0.01, 0.12 + R() * 0.2, 0.1 + R() * 0.25, 0.02, R() < 0.5 ? 0x7a0808 : 0x4a0404);
+    B.box(0.05, hy - 0.1, hz + 0.3, 0.12, 0.12, 0.02, 0x7a0808);
+  }
   // 腕
   const sleeve = o.armor || o.top;
   B.box(-0.5 * bw, 1.25, 0.02, 0.2, 0.78, 0.22, sleeve, 0, 0, 0.1);
@@ -172,21 +177,30 @@ class Player {
     this.root = new THREE.Group();
     this.model = new THREE.Group();   // 正面は +Z
     this.root.add(this.model);
-    const robe = 0x2f3e6b, trim = 0xd9b34a, skin = 0xf0c9a0, hair = 0x2a1f1a, hat = 0x28315a;
+    // 王国魔法師団長の礼装（黒と群青の長衣、金の縁取り、白銀の髪）
+    const robe = 0x161c30, trim = 0xd9b34a, skin = 0xeac4a0, hair = 0xe8ecf0;
     const B = new Builder();
-    box(B, 0, 1.25, 0, 0.8, 0.9, 0.46, robe);
-    B.cyl(0, 0.62, 0, 0.42, 0.66, 1.1, robe, 12);
-    B.cyl(0, 0.1, 0, 0.66, 0.67, 0.08, trim, 12);
-    box(B, 0, 1.2, 0.235, 0.12, 0.9, 0.02, trim);
-    box(B, 0, 0.95, 0, 0.82, 0.1, 0.48, 0x5a3a22);
-    B.sphere(0, 1.98, 0, 0.32, skin, 1, 1, 1, 1);
-    B.sphere(0, 2.02, -0.03, 0.34, hair, 1, 0.82, 1);
-    box(B, -0.11, 2.0, 0.3, 0.06, 0.08, 0.02, 0x1a1a1a);
-    box(B, 0.11, 2.0, 0.3, 0.06, 0.08, 0.02, 0x1a1a1a);
-    B.cyl(0, 2.22, 0, 0.66, 0.66, 0.05, hat, 16);
-    B.cone(0, 2.72, -0.04, 0.36, 1.0, hat, 10, 0, -0.18);
-    B.torus(0, 2.28, 0, 0.36, 0.05, trim, Math.PI / 2);
-    box(B, 0, 1.2, -0.27, 0.86, 1.4, 0.05, 0x5a2030, 0, -0.08);
+    box(B, 0, 1.28, 0, 0.84, 0.95, 0.46, robe);
+    B.cyl(0, 0.6, 0, 0.44, 0.62, 1.18, robe, 12);
+    B.cyl(0, 0.04, 0, 0.62, 0.63, 0.08, trim, 12);
+    box(B, 0, 1.18, 0.235, 0.1, 1.2, 0.02, trim);
+    box(B, -0.18, 1.5, 0.235, 0.05, 0.5, 0.02, trim); box(B, 0.18, 1.5, 0.235, 0.05, 0.5, 0.02, trim);
+    box(B, 0, 0.96, 0, 0.86, 0.1, 0.5, 0x3a2a1a);
+    box(B, 0, 0.96, 0.26, 0.2, 0.16, 0.04, trim);
+    // 肩当てと立ち襟
+    box(B, -0.5, 1.72, 0, 0.42, 0.16, 0.54, 0x2a2e44); box(B, 0.5, 1.72, 0, 0.42, 0.16, 0.54, 0x2a2e44);
+    box(B, -0.5, 1.79, 0, 0.44, 0.04, 0.56, trim); box(B, 0.5, 1.79, 0, 0.44, 0.04, 0.56, trim);
+    B.cyl(0, 1.8, -0.02, 0.28, 0.3, 0.26, robe, 10);
+    B.sphere(0, 2.02, 0, 0.3, skin, 1, 1.05, 1, 1);
+    B.sphere(0, 2.1, -0.04, 0.33, hair, 1, 0.8, 1);
+    box(B, 0, 1.86, -0.24, 0.5, 0.55, 0.14, hair);
+    box(B, -0.24, 1.98, 0.08, 0.08, 0.4, 0.2, hair); box(B, 0.24, 1.98, 0.08, 0.08, 0.4, 0.2, hair);
+    box(B, -0.1, 2.04, 0.28, 0.07, 0.05, 0.02, 0x3a6aa8);
+    box(B, 0.1, 2.04, 0.28, 0.07, 0.05, 0.02, 0x3a6aa8);
+    box(B, 0, 2.18, 0.26, 0.5, 0.05, 0.05, trim);
+    // 外套
+    box(B, 0, 1.08, -0.3, 0.98, 1.9, 0.05, 0x0c0e1a, 0, -0.07);
+    box(B, 0, 0.16, -0.36, 1.0, 0.1, 0.06, trim, 0, -0.07);
     this.body = B.mesh();
     this.model.add(this.body);
     const limb = (x, y, w, h, color, extra) => {
@@ -197,14 +211,16 @@ class Player {
       const m = L.mesh(); pivot.add(m);
       return pivot;
     };
-    this.armL = limb(-0.52, 1.62, 0.22, 0.78, robe, (L, h) => L.box(0, -h - 0.06, 0, 0.16, 0.16, 0.16, skin));
-    this.armR = limb(0.52, 1.62, 0.22, 0.78, robe, (L, h) => L.box(0, -h - 0.06, 0, 0.16, 0.16, 0.16, skin));
+    this.armL = limb(-0.54, 1.64, 0.22, 0.8, robe, (L, h) => { L.box(0, -h + 0.1, 0, 0.26, 0.2, 0.26, trim); L.box(0, -h - 0.06, 0, 0.16, 0.16, 0.16, 0xf4f0e6); });
+    this.armR = limb(0.54, 1.64, 0.22, 0.8, robe, (L, h) => { L.box(0, -h + 0.1, 0, 0.26, 0.2, 0.26, trim); L.box(0, -h - 0.06, 0, 0.16, 0.16, 0.16, 0xf4f0e6); });
     // 杖（手首を支点に回す）と先の宝珠
     this.staff = new THREE.Group();
     this.staff.position.set(0, -0.84, 0.06);
     const SB = new Builder();
-    SB.cyl(0, 0.15, 0, 0.04, 0.05, 2.1, 0x6b4a2c, 6);
-    SB.torus(0, 1.18, 0, 0.13, 0.03, 0xd9b34a, Math.PI / 2);
+    SB.cyl(0, 0.15, 0, 0.045, 0.055, 2.2, 0x1a1a24, 6);
+    SB.torus(0, 1.18, 0, 0.16, 0.035, 0xd9b34a, Math.PI / 2);
+    SB.torus(0, 1.3, 0, 0.22, 0.025, 0xd9b34a, 0);
+    SB.cone(0, 1.55, 0, 0.05, 0.3, 0xd9b34a, 4);
     this.staff.add(SB.mesh());
     this.orb = new THREE.Mesh(new THREE.IcosahedronGeometry(0.14, 1), new THREE.MeshBasicMaterial({ color: 0xffd08a }));
     this.orb.position.set(0, 1.32, 0);
@@ -212,8 +228,8 @@ class Player {
     this.orb.add(this.orbGlow);
     this.staff.add(this.orb);
     this.armR.add(this.staff);
-    this.legL = limb(-0.2, 0.82, 0.26, 0.8, 0x3b3228);
-    this.legR = limb(0.2, 0.82, 0.26, 0.8, 0x3b3228);
+    this.legL = limb(-0.2, 0.82, 0.26, 0.8, 0x14141c);
+    this.legR = limb(0.2, 0.82, 0.26, 0.8, 0x14141c);
     this.model.add(this.armL, this.armR, this.legL, this.legR);
     scene.add(this.root);
 

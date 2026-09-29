@@ -6,20 +6,20 @@
 const PLACES = [
   { id: 'start',   name: 'はじまりの丘',        x: 0,    z: 0,     r: 26,  ground: 'grass', minH: 3 },
   { id: 'kazami',  name: '風見の村',            x: 70,   z: 250,   r: 78,  ground: 'dirt' },
-  { id: 'aldia',   name: '王都アルディア',      x: -430, z: -330,  r: 158, ground: 'cobble' },
-  { id: 'academy', name: '魔法学院',            x: -170, z: -500,  r: 62,  ground: 'cobble' },
+  { id: 'aldia',   name: '王都アルディア',      x: -450, z: -290,  r: 272, ground: 'cobble', inner: 1.0, blend: 70 },
+  { id: 'academy', name: '魔法学院',            x: -230, z: -600,  r: 62,  ground: 'cobble' },
   { id: 'belka',   name: '交易都市ベルカ',      x: 520,  z: -160,  r: 110, ground: 'cobble' },
   { id: 'oasis',   name: 'オアシスの集落サラ',  x: 760,  z: -640,  r: 64,  ground: 'sand' },
   { id: 'pass',    name: '霧の峠',              x: 90,   z: -660,  r: 38,  ground: 'dirt' },
   { id: 'gate',    name: '帝国の関所',          x: 130,  z: -840,  r: 34,  ground: 'dirt' },
   { id: 'empire',  name: '帝都ガルヴァス',      x: 200,  z: -1010, r: 140, ground: 'dark' },
-  { id: 'ruins',   name: '古代遺跡',            x: -820, z: -330,  r: 96,  ground: 'stone' },
+  { id: 'ruins',   name: '古代遺跡',            x: -900, z: -250,  r: 96,  ground: 'stone' },
   { id: 'leafe',   name: '森の集落リーフェ',    x: -490, z: 210,   r: 50,  ground: 'moss' },
   { id: 'swamp',   name: '沼の魔女の庵',        x: -690, z: 640,   r: 28,  ground: 'moss' },
   { id: 'marina',  name: '港町マリナ',          x: 500,  z: 805,   r: 80,  ground: 'cobble', h: 2.6 },
   { id: 'island',  name: '月影島',              x: 800,  z: 1060,  r: 52,  ground: 'grass' },
   { id: 'dragon',  name: '竜の峰',              x: -920, z: -980,  r: 42,  ground: 'stone' },
-  { id: 'spring',  name: '妖精の泉',            x: -330, z: 40,    r: 16,  ground: 'moss' }
+  { id: 'spring',  name: '妖精の泉',            x: -300, z: 90,    r: 16,  ground: 'moss' }
 ];
 const PLACE = {};
 for (const p of PLACES) PLACE[p.id] = p;
@@ -52,7 +52,7 @@ const PEAKS = [
 const LAKES = [
   { id: 'mirror', name: '鏡の湖', x: -120, z: -560, r: 38, below: 1.5 },
   { id: 'oasis',  x: 772, z: -622, r: 15, below: 0.6 },
-  { id: 'spring', x: -330, z: 40, r: 8, below: 0.4 }
+  { id: 'spring', x: -300, z: 90, r: 8, below: 0.4 }
 ];
 // 川（鏡の湖から南の海へ）
 const RIVER_PTS = [[-112, -522], [-80, -420], [40, -300], [140, -180], [185, -40], [195, 80], [178, 200],
@@ -60,21 +60,25 @@ const RIVER_PTS = [[-112, -522], [-80, -420], [40, -300], [140, -180], [185, -40
 // 道（場所どうしをつなぐ）
 const ROADS = [
   [[0, 0], [20, 120], [70, 250]],                                                  // 丘→風見の村
-  [[0, 0], [-120, -90], [-250, -250], [-290, -330], [-430, -330]],                 // 丘→王都
-  [[-290, -330], [-230, -420], [-170, -500]],                                       // 王都→学院
+  [[0, 0], [-110, -100], [-210, -220], [-248, -250], [-450, -250]],                // 丘→王都（東門から中央広場へ）
+  [[-450, -250], [-450, -375]],                                                     // 中央広場→城の内門
+  [[-450, -250], [-450, -85], [-470, -40]],                                         // 中央広場→南門
+  [[-450, -250], [-652, -250]],                                                     // 中央広場→西門
+  [[-652, -250], [-760, -250], [-900, -250]],                                       // 西門→遺跡
+  [[-248, -250], [-190, -330], [-190, -470], [-230, -600]],                         // 東門→学院
   [[0, 0], [150, -60], [330, -130], [520, -160]],                                   // 丘→ベルカ
   [[0, 0], [10, -110], [30, -220], [60, -380], [45, -500], [90, -600], [90, -660],
    [110, -760], [130, -840], [170, -920], [200, -1010]],                            // 山道→帝都
   [[70, 250], [140, 420], [260, 600], [400, 720], [500, 805]],                     // 村→港町
   [[70, 250], [-100, 240], [-300, 230], [-490, 210]],                               // 村→森の集落
   [[-490, 210], [-560, 420], [-690, 640]],                                          // 森→沼
-  [[-430, -330], [-570, -330], [-700, -320], [-820, -330]],                         // 王都→遺跡
-  [[-820, -330], [-850, -500], [-760, -640], [-880, -760], [-860, -880], [-920, -980]], // 遺跡→竜の峰
+  [[-900, -250], [-900, -470], [-790, -620], [-880, -760], [-860, -880], [-920, -980]], // 遺跡→竜の峰
   [[520, -160], [620, -330], [700, -500], [760, -640]],                             // ベルカ→オアシス
   [[520, -160], [560, 200], [540, 500], [500, 805]],                                // ベルカ→港町
   [[500, 805], [500, 880]]                                                           // 港の桟橋へ
 ];
 const ROAD_HW = 3.2, ROAD_SHOULDER = 9;
+const MOUNTAIN_ROAD = ROADS.findIndex(r => r[r.length - 1][0] === 200 && r[r.length - 1][1] === -1010);
 
 /* =========================================================
    地形の基本形
@@ -146,12 +150,13 @@ function baseH(x, z) {
 function initPlaces() {
   for (const p of PLACES) p.fh = p.h !== undefined ? p.h : Math.max(p.minH || 2.5, baseH(p.x, p.z));
 }
+function placeOuter(p) { return p.blend !== undefined ? p.r + p.blend : p.r * 1.6 + 10; }
 function hPlaces(x, z) {
   let h = baseH(x, z);
   for (const p of PLACES) {
     const d = Math.hypot(x - p.x, z - p.z);
-    const R = p.r * 1.6 + 10;
-    if (d < R) h = lerp(p.fh, h, smooth(p.r * 0.9, R, d));
+    const R = placeOuter(p);
+    if (d < R) h = lerp(p.fh, h, smooth(p.r * (p.inner || 0.9), R, d));
   }
   return h;
 }
@@ -334,9 +339,9 @@ function genHeight(x, z) {
   let surf = S_NAT;
   for (const p of PLACES) {
     const d = Math.hypot(x - p.x, z - p.z);
-    const R = p.r * 1.6 + 10;
+    const R = placeOuter(p);
     if (d < R) {
-      h = lerp(p.fh, h, smooth(p.r * 0.9, R, d));
+      h = lerp(p.fh, h, smooth(p.r * (p.inner || 0.9), R, d));
       if (d < p.r * 0.93 && surf === S_NAT) surf = GROUND_CODE[p.ground];
     }
   }
@@ -496,7 +501,9 @@ function waterAt(x, z) {
 const COLL_CELL = 8;
 const colliders = new Map();
 const platforms = new Map();
+let COLL_CAPTURE = null;          // ここに配列を入れておくと、追加した当たり判定を記録する
 function _gridInsert(map, obj, x0, z0, x1, z1) {
+  if (COLL_CAPTURE) COLL_CAPTURE.push({ map, obj, x0, z0, x1, z1 });
   for (let gx = Math.floor(x0 / COLL_CELL); gx <= Math.floor(x1 / COLL_CELL); gx++)
     for (let gz = Math.floor(z0 / COLL_CELL); gz <= Math.floor(z1 / COLL_CELL); gz++) {
       const key = gx * 100003 + gz;
@@ -517,6 +524,25 @@ function addBoxCollider(x, z, hx, hz, ry = 0) {
 function addWallCollider(x1, z1, x2, z2, thick) {
   const L = Math.hypot(x2 - x1, z2 - z1);
   addBoxCollider((x1 + x2) / 2, (z1 + z2) / 2, thick / 2, L / 2, Math.atan2(x2 - x1, z2 - z1));
+}
+// 記録した当たり判定をまとめて消す（壊れた建物・作り直した木など）
+function removeColliders(list) {
+  for (const e of list) {
+    for (let gx = Math.floor(e.x0 / COLL_CELL); gx <= Math.floor(e.x1 / COLL_CELL); gx++)
+      for (let gz = Math.floor(e.z0 / COLL_CELL); gz <= Math.floor(e.z1 / COLL_CELL); gz++) {
+        const l = e.map.get(gx * 100003 + gz);
+        if (!l) continue;
+        const i = l.indexOf(e.obj);
+        if (i >= 0) l.splice(i, 1);
+      }
+  }
+  list.length = 0;
+}
+function captureColliders(fn) {
+  const prev = COLL_CAPTURE, list = [];
+  COLL_CAPTURE = list;
+  try { fn(); } finally { COLL_CAPTURE = prev; if (prev) prev.push(...list); }
+  return list;
 }
 function resolveCollisions(p, radius) {
   const cx = Math.floor(p.x / COLL_CELL), cz = Math.floor(p.z / COLL_CELL);
@@ -592,6 +618,12 @@ function areaName(x, z) {
   if (polyDist(RIDGES[0].pts, x, z) < 130) return '霊峰山脈';
   if (z < -780) return 'ガルヴァス帝国領';
   return 'エルディア平原';
+}
+// 王都を囲む帝国軍の陣（木を生やさない）
+function inSiegeField(x, z) {
+  const p = PLACES.find(q => q.id === 'aldia');
+  const lx = x - p.x, lz = z - p.z;
+  return (lz > 150 && lz < 470 && Math.abs(lx) < 340) || (lx > 180 && lx < 380 && lz > -120 && lz < 160);
 }
 function inSafeZone(x, z) {
   for (const p of PLACES) if (p.id !== 'ruins' && p.id !== 'dragon' && Math.hypot(x - p.x, z - p.z) < p.r * 1.05 + 4) return true;
@@ -687,7 +719,7 @@ function updateChunks(x, z, budget = 1) {
       scene.add(ch.hi);
       ch.lo.visible = false;
     } else {
-      ch.veg = buildVegetation(ch);
+      ch.vegCols = captureColliders(() => { ch.veg = buildVegetation(ch); });
       scene.add(ch.veg);
     }
   }
@@ -713,6 +745,8 @@ function buildVegetation(ch) {
     if (s !== S_NAT) continue;
     if (h < waterAt(x, z) + 0.6) continue;
     if (nearAnyPlace(x, z, 6)) continue;
+    if (inCrater(x, z)) continue;
+    if (inSiegeField(x, z)) continue;
     const rd = roadAt(x, z);
     if (rd && rd.d < ROAD_HW + 2.5) continue;
     const i = Math.round((x + HALF) / CELL), j = Math.round((z + HALF) / CELL);
@@ -749,7 +783,7 @@ function buildVegetation(ch) {
   for (let n = 0; n < 30; n++) {
     const x = ch.x0 + R() * CHUNK, z = ch.z0 + R() * CHUNK;
     const h = terrainHeight(x, z);
-    if (h < 35 || nearAnyPlace(x, z, 4)) continue;
+    if (h < 35 || nearAnyPlace(x, z, 4) || inCrater(x, z)) continue;
     const rd = roadAt(x, z);
     if (rd && rd.d < ROAD_HW + 2) continue;
     rockAt(B, x, h, z, R, h > 90 ? 0xd6d6d2 : 0x7c776d);
@@ -891,4 +925,54 @@ function buildMapImage() {
   }
   g.putImageData(img, 0, 0);
   MAP_CANVAS = c;
+}
+
+/* =========================================================
+   地形を変える（大魔法のクレーター）
+   自国の土地は決して変えない。帝国の土地だけ。
+   ========================================================= */
+const CRATERS = [];
+function inCrater(x, z) { for (const c of CRATERS) if (Math.hypot(x - c.x, z - c.z) < c.r) return true; return false; }
+function isEnemyLand(x, z) {
+  if (z > -770 || x > CONFIG.dungeonX - 1000) return false;
+  const e = PLACE.empire;
+  if (!STORY_FLAGS.palaceOpen && Math.hypot(x - e.x, z - (e.z - 70)) < 95) return false;   // 宮殿は結界で守られている
+  return true;
+}
+const _scorch = new THREE.Color(0x3a3028);
+function deformCrater(cx, cz, R, depth) {
+  if (!isEnemyLand(cx, cz) || R < 3) return false;
+  R = Math.min(R, 170); depth = Math.min(depth, 48);
+  const Rr = R * 1.3;
+  const i0 = clamp(Math.floor((cx - Rr + HALF) / CELL), 0, GN), i1 = clamp(Math.ceil((cx + Rr + HALF) / CELL), 0, GN);
+  const j0 = clamp(Math.floor((cz - Rr + HALF) / CELL), 0, GN), j1 = clamp(Math.ceil((cz + Rr + HALF) / CELL), 0, GN);
+  const c = new THREE.Color();
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    const x = -HALF + i * CELL, z = -HALF + j * CELL;
+    const d = Math.hypot(x - cx, z - cz);
+    if (d > Rr) continue;
+    const k = i + j * GV;
+    if (d < R) {
+      HEIGHTS[k] -= depth * Math.pow(1 - (d / R) ** 2, 1.3);
+      const f = 0.85 * (1 - d / R) + 0.15;
+      c.setRGB(COLORS[k * 3] / 255, COLORS[k * 3 + 1] / 255, COLORS[k * 3 + 2] / 255).lerp(_scorch, f);
+      COLORS[k * 3] = c.r * 255; COLORS[k * 3 + 1] = c.g * 255; COLORS[k * 3 + 2] = c.b * 255;
+    } else {
+      HEIGHTS[k] += depth * 0.12 * Math.sin((d - R) / (Rr - R) * Math.PI);
+    }
+  }
+  CRATERS.push({ x: cx, z: cz, r: Rr });
+  for (const ch of chunks) {
+    if (ch.x0 > cx + Rr + CELL || ch.x0 + CHUNK < cx - Rr - CELL || ch.z0 > cz + Rr + CELL || ch.z0 + CHUNK < cz - Rr - CELL) continue;
+    ch.lo.geometry.dispose();
+    ch.lo.geometry = buildChunkGeo(ch.ci, ch.cj, 5);
+    if (ch.hi) { ch.hi.geometry.dispose(); ch.hi.geometry = buildChunkGeo(ch.ci, ch.cj, 1); }
+    if (ch.veg) {
+      scene.remove(ch.veg);
+      ch.veg.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+      if (ch.vegCols) removeColliders(ch.vegCols);
+      ch.veg = null;
+    }
+  }
+  return true;
 }

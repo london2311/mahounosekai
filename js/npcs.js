@@ -469,7 +469,8 @@ function resolveNpcPos(d) {
 }
 
 function spawnNPCs() {
-  for (const d of NPCS) {
+  for (const d0 of NPCS) {
+    const d = NPC_STORY[d0.id] ? Object.assign({}, d0, NPC_STORY[d0.id]) : d0;
     const p = resolveNpcPos(d);
     let m;
     if (d.cat) m = catModel();
@@ -499,9 +500,14 @@ function updateNPCs(dt, t) {
   const px = player.pos.x, pz = player.pos.z;
   for (const n of NPC_LIST) {
     const dist = Math.hypot(n.pos.x - px, n.pos.z - pz);
-    n.root.visible = !GAME.inDungeon && dist < 170;
+    n.root.visible = !n.hidden && !GAME.inDungeon && dist < 170;
     if (!n.root.visible || dist > 140) continue;
     let moving = false;
+    if (n.pose) {
+      if (n.talking && n.pose !== 'lie') n.face = angleLerp(n.face, Math.atan2(px - n.pos.x, pz - n.pos.z), Math.min(1, dt * 4));
+      n.root.rotation.y = n.face;
+      continue;
+    }
     if (n.talking) {
       n.face = angleLerp(n.face, Math.atan2(px - n.pos.x, pz - n.pos.z), Math.min(1, dt * 8));
     } else if (n.d.move === 'wander' || n.d.move === 'patrol') {
@@ -547,9 +553,153 @@ function updateNPCs(dt, t) {
 function nearestNPC(maxD) {
   let best = null, bd = maxD;
   for (const n of NPC_LIST) {
-    if (!n.root.visible) continue;
+    if (!n.root.visible || n.d.corpse) continue;
     const d = Math.hypot(n.pos.x - player.pos.x, n.pos.z - player.pos.z);
     if (d < bd && Math.abs(n.pos.y - player.pos.y) < 3) { bd = d; best = n; }
   }
   return best;
+}
+
+/* =========================================================
+   物語に合わせた住民の姿（包囲中／解放後）
+   siege: 包囲中の居場所と台詞（無ければ包囲中は姿を見せない）
+   occ:   帝国に占領された場所（将を倒すまで姿を見せない）
+   dead:  この戦で命を落とした
+   ========================================================= */
+const NPC_STORY = {
+  king: { role: 'アルディア国王', persona: '娘を失った父。それでも王であろうとしている。',
+    siege: { spot: 'throne', off: [0, 0.4], lines: ['……セシリアは、最後に笑っておった。「お父様、レグルスが来てくれる」と。',
+      '余は王だ。泣くのは、民がひとり残らず助かってからでよい。……行ってくれ、レグルス。'] },
+    lines: ['娘の墓には、毎朝花が供えられている。……誰が置いているのか、余は知らぬふりをしておる。',
+      'レグルス。この国の十万の民のうち、生き残ったのは四万に満たぬ。……それでも、国は国だ。',
+      '復讐の先に何があるのか、余にも分からぬ。だが、あの子の命を無駄にはせぬ。'] },
+  cecilia: { name: 'セシリア', role: '王女', corpse: true, look: ['princess', { blood: true }],
+    siege: { spot: 'circle', off: [0, -0.5], pose: 'lie', lines: ['……（安らかな顔で、眠るように横たわっている）'] }, lines: ['……'] },
+  oswald: { siege: { spot: 'throne', off: [-5, 4], lines: ['レ、レグルス殿……本当に……。い、いや、震えてなどおりませんぞ。数字を……数を数えていないと、正気が保てんのです。',
+      '城に逃げ込めた民は、およそ二千。城下には……まだ、何万と……。'] },
+    lines: ['復興の予算……いえ、今は人手です。瓦礫を片づける手が、まるで足りない。', '宰相ゼノン……あの男の目が嫌いだと、私はずっと言っておったのです。……ずっと。'] },
+  seles: { name: 'セレス', role: '魔法学院 学院長／王国魔法師団 元副官', look: ['wizard_f', { dress: 0x3a2a6a, hair: 0xe8e4f0, blood: true }],
+    persona: 'レグルスの同期で、かつての副官。気丈だが、彼の前でだけは弱さを見せる。',
+    siege: { spot: 'circle', off: [-4, 3], lines: ['中庭が破られたら終わりよ。ヴォルクたちを助けて。', 'セシリア様は……あなたを呼ぶために、自分の命を差し出した。あの子、ずっとあなたに懐いてたものね。'] },
+    lines: ['五年間、あなたの墓に報告しに行ってた。学院のことも、この国のことも。……まさか返事が来るなんてね。',
+      '学院の子たちは半分しか残らなかった。……それでも、また授業をするわ。あなたがそうしたように。'] },
+  gareth: { role: '近衛騎士団長（重傷）', look: ['knight', { cape: 0x9a1f2a, blood: true }],
+    siege: { spot: 'courtyard', off: [11, -15], pose: 'sit', lines: ['……わっはっは……ざまぁねえ……脚をやられた……。レグルス、お前……本物か……',
+      '騎士は民を守るもんだ……なのに俺は……守られてばかりだ……。……頼む、城下の連中を……'] },
+    lines: ['脚は片方になっちまったが、剣は振れる。騎士団を一から鍛え直しだ。', '……レグルス。あの夜、お前が来なかったら、俺たちは全員死んでた。……酒でも奢らせろ。'] },
+  volk: { name: 'ヴォルク', role: '王国魔法師団 副団長', look: ['wizard_m', { dress: 0x9a2a1a, beard: 0x8a2a1a, hair: 0x8a2a1a, blood: true }],
+    persona: 'レグルスの右腕。豪胆で直情的。五年間、師団長の座を空けたまま戦い続けた。',
+    siege: { spot: 'courtyard', off: [0, -13], lines: ['団長の命令を待ってる。……五年も待ったんだ、今さら急かさねえよ。'] },
+    lines: ['師団長の席は、ずっと空けてあった。誰にも座らせなかった。……座ってくれ、団長。', '次の戦も、背中は俺が守る。前だけ見てろ。'] },
+  yukina: { name: 'ユキナ', role: '王国魔法師団 氷結隊長', look: ['wizard_f', { dress: 0x5a8ab8, hair: 0xd8e8f8, blood: true }],
+    persona: '冷静で皮肉屋。レグルスの葬儀で唯一泣かなかったが、その夜ひとりで泣いた。',
+    siege: { spot: 'courtyard', off: [-6, -14], lines: ['魔力はもう残ってない。凍らせた奴らの数も、もう数えてない。', '……団長。泣いてないわよ。氷の魔法使いは泣かないの。'] },
+    lines: ['凍えるほど静かな夜ね。……前は、この静けさが怖かった。', '次は帝国ね。凍らせてほしい奴がいたら、言って。'] },
+  raiga: { name: 'ライガ', role: '王国魔法師団 雷撃隊長', look: ['wizard_m', { dress: 0x8a7a1a, hair: 0xe8d84a, blood: true }],
+    persona: '最年少の隊長。レグルスに拾われた孤児で、兄のように慕っている。',
+    siege: { spot: 'courtyard', off: [6, -14], lines: ['団長が戻ってきたんだ！ 死んでたまるかよ！', '城下で、俺の知ってる奴らが……くそっ！'] },
+    lines: ['団長、今度の戦は俺も連れてってくれよ！ ……だめ？ ちぇっ。', '昔、団長に「雷は怒りで撃つな」って言われたの、やっと分かった気がする。'] },
+  marco: { siege: { spot: 'roomC', off: [4, 2], lines: ['救護室はもういっぱいです。……薬も包帯も、足りない。', '王女様が……王女様が……。すみません、職務中に。'] } },
+  anna: { role: '城の侍女（救護係）', siege: { spot: 'roomC', off: [-4, 1], lines: ['お湯を……お湯をもっと……。血が、止まらないの……。', '王女様の紅茶は、九十五度のお湯で三分。……もう、淹れて差し上げられない。'] },
+    lines: ['王女様の部屋は、そのままにしてあります。……掃除だけは、毎日。'] },
+  clara: { siege: { spot: 'roomC', off: [2, -3], lines: ['神父様は、逃げ遅れた人たちを庇って……聖堂の前で……。', '……祈ることしか、できないのです。'] },
+    lines: ['神父様の代わりに、弔いの祈りを続けています。……名前を、一人ずつ呼びながら。'] },
+  mimi: { siege: { spot: 'roomC', off: [-2, 4], pose: 'sit', lines: ['……おかあさん、どこ……？', '……おにいちゃん、魔法使い？ ……わるいひと、やっつけてくれる？'] },
+    lines: ['おかあさんね、お星さまになったんだって。……だから、夜はさみしくないよ。'] },
+  toto: { siege: { spot: 'roomC', off: [-1, 5], pose: 'sit', lines: ['……ぼく、泣いてないよ。ミミを守るって、とうちゃんと約束したから。'] },
+    lines: ['大きくなったら、ぼく魔法師団に入る！ 団長みたいになるんだ！'] },
+  beatrice: { siege: { spot: 'roomC', off: [5, -2], lines: ['宝石も屋敷も、ぜんぶ燃えましたわ。……夫も。……おかしいわね、宝石のことばかり考えてしまうの。'] } },
+  roy: { lines: ['……門を、もう二度と破らせません。この命に代えても。', '団長。あの時、助けてくれて……。いえ、何でもありません。任務に戻ります。'] },
+  karl: { role: '新米兵士（療養中）', lines: ['……まだ、指がうまく動かなくて。でも、剣は握れます。', '団長……僕、ちゃんと戦えてましたか？ ……そうですか。……へへ。'] },
+  ben: { dead: true }, ambrose: { dead: true }, gino: { dead: true }, zacharia: { dead: true },
+  dario: { after: ['店は半分焼けちまったが、金床は無事だ。……戦の杖なら、いくらでも打ってやる。'] },
+  minerva: { after: ['薬草の畑は焼かれました。でも、種は残っています。……何度でも、育てます。'] },
+  boris: { after: ['……飯は、生き残った奴らにタダで出してる。金はいい。……食え。'] },
+  rose: { after: ['踊る子鹿亭のマスターは……もう、いないの。でも、店は閉めない。あの人が怒るもの。'] },
+  poppy: { after: ['花を売るのはやめたの。今は、お墓に花を供えて回ってる。……足りないの、いくら摘んでも。'] },
+  felix: { after: ['図書館の本は三割が焼けました。……でも、記録は残します。この戦で何があったのかを、すべて。'] },
+  nina: { after: ['ギルドの冒険者も、たくさん死にました。……依頼の張り紙、半分は復興の手伝いです。'] },
+  // 占領されていた村と学院
+  bald: { occ: 'kazami', freed: ['……風車が、止まっておった。百年回り続けた風車が。……あんたが、また回してくれたんじゃな。'] },
+  emma: { occ: 'kazami', freed: ['地下の食料庫に隠れておったの。……子どもたちの泣き声を、手で塞いで。'] },
+  hanna: { occ: 'kazami', freed: ['あっはっは……笑ってないと、やってらんないよ。……泊まってきな。お代はいいから。'] },
+  tom: { occ: 'kazami' }, glen: { occ: 'kazami' }, josef: { occ: 'kazami' }, marsa: { occ: 'kazami' }, kai: { occ: 'kazami' }, fin: { occ: 'kazami' },
+  pico: { occ: 'kazami', freed: ['魔法師団長だったの！？ ……メリーはね、兵隊に食べられちゃった。……でもぼく、泣かないよ。'] },
+  lili: { occ: 'kazami', freed: ['……丘の上の黄色いお花、ぜんぶ踏まれちゃった。……また、咲くかな。'] },
+  will: { occ: 'kazami', freed: ['風が変わったね。……焦げ臭さが消えた。'] },
+  noah: { occ: 'academy', freed: ['ヘルミーネに……友達が、何人も連れていかれて……。僕、もっと強くなります。'] },
+  elsa: { occ: 'academy' }, popo: { occ: 'academy' }, olga: { occ: 'academy', freed: ['焚書されかけた魔導書を、床下に隠しておいたの。……知識は、燃やさせないわ。'] },
+  johan: { occ: 'ruins' }, mina: { occ: 'ruins' },
+  gen: { occ: 'pass' }, gustav: { occ: 'pass' }, sion: { occ: 'pass' },
+  luke: { occ: 'pass', role: '帝国の脱走兵', freed: ['……俺も帝国兵だった。村を焼けと命じられて、逃げた。……臆病者だと笑ってくれ。', '十将は、宰相ゼノンが集めた奴らだ。皇帝陛下は、もう何年も誰とも話していないらしい。'] },
+  // 帝国側（戦の間は敵）
+  dominic: { dead: true }, julius: { dead: true }, emperor: { dead: true }, zenon: { dead: true }, bram: { dead: true },
+  arno: { dead: true }, viktor: { dead: true }, erik: { dead: true }, mattias: { dead: true },
+  klaus: { occ: 'empire' }, helga: { occ: 'empire' }, otto: { occ: 'empire' },
+  iris: { occ: 'empire', freed: ['わたしの魔導兵器が、王国を焼いた。……宰相のためじゃなく、自分の好奇心のために作った。……裁いて。'] },
+  karasu: { occ: 'empire', freed: ['……宰相が消えた。皇帝陛下が、十年ぶりに自分の言葉で話したそうだ。……礼を言う、王国の魔法使い。'] },
+  greta: { occ: 'empire', freed: ['王国の人……？ ごめんなさい、わたしたち、何も知らなかったの。……知ろうとしなかったの。'] },
+  fritz: { occ: 'empire' }, lulu: { occ: 'empire', freed: ['夜の変な光、消えたよ！ ……おにいさんがやったの？'] }
+};
+// 解放後に城下で暮らす、救い出した人々
+NPCS.push(
+  { id: 'edgar', name: 'エドガー', role: '王国騎士', libOnly: true, at: ['aldia', 10, 40], look: ['knight', { cape: 0x2a4a8a }],
+    persona: '誇り高い騎士。広場で仲間を失った。', lines: ['この広場で、何人も殺されました。……ここに立つたび、思い出します。だから、ここに立つのです。'] },
+  { id: 'marian', name: 'マリアン', role: '仕立て屋の主人', libOnly: true, at: ['aldia', 118, 34], look: ['woman', { dress: 0x6a5a4a }],
+    persona: '娘思いの母親。', lines: ['娘、無事でした。……城の救護室で、ずっと私を待っていてくれたの。', '喪服ばかり縫っています。……早く、婚礼の衣装を縫いたいわ。'] },
+  { id: 'gordon', name: 'ゴードン', role: 'パン屋の主人', libOnly: true, at: ['aldia', 8, 124], look: ['man', { bulk: 1.2, apron: 0xe8e0cc }],
+    persona: '豪快なパン職人。', lines: ['パン、焼いてるぞ！ 生き残った奴らに腹いっぱい食わせるんだ。', '焼き窯だけは壊れなかった。……パン屋の神様ってのは、いるのかもな。'] },
+  { id: 'heinz', name: 'ハインツ', role: '衛兵（両目を失った）', libOnly: true, at: ['aldia', -110, 50], look: ['soldier', { hat: 'none' }],
+    persona: '目を失っても誇りを失わない衛兵。', lines: ['見えなくても、足音で分かります。……団長の足音は、五年前と同じだ。'] },
+  { id: 'mika', name: 'ミカ', role: '聖堂の修道士', libOnly: true, at: ['aldia', -30, 60], look: ['priest', {}],
+    persona: '神父アンブロシウスの弟子。', lines: ['師は、最後まで扉の前に立っておられました。……今は、私が弔いの鐘を鳴らしています。'] }
+);
+function npcPhasePos(n) {
+  const d = n.d;
+  if (d.dead) return null;
+  const lib = STORY_FLAGS.liberated;
+  if (d.libOnly && !lib) return null;
+  if (d.corpse && lib) return null;
+  if (d.occ && occupied(d.occ)) return null;
+  if (!lib) {
+    if (d.siege) {
+      const s = SPOTS[d.siege.spot];
+      return s ? { x: s.x + d.siege.off[0], z: s.z + d.siege.off[1], pose: d.siege.pose || '', y: s.y } : null;
+    }
+    const inAldia = (d.at && d.at[0] === 'aldia') || (d.bld && d.bld.startsWith('aldia')) || (d.spot === 'throne');
+    if (inAldia) return null;
+  }
+  // セレスは学院が解放されるまで城にいる
+  if (d.id === 'seles' && occupied('academy')) { const s = SPOTS.throne; return { x: s.x - 6, z: s.z + 5, pose: '' }; }
+  if (d.id === 'volk' || d.id === 'yukina' || d.id === 'raiga') {
+    const s = SPOTS.throne, o = { volk: [5, 6], yukina: [8, 8], raiga: [-8, 8] }[d.id];
+    return { x: s.x + o[0], z: s.z + o[1], pose: '' };
+  }
+  return { x: n.home0.x, z: n.home0.z, pose: '', y: n.fixedY0 };
+}
+function refreshNPCs() {
+  for (const n of NPC_LIST) {
+    if (!n.home0) { n.home0 = { x: n.home.x, z: n.home.z }; n.fixedY0 = n.fixedY; }
+    const p = npcPhasePos(n);
+    n.hidden = !p;
+    if (!p) { n.root.visible = false; continue; }
+    const moved = Math.hypot(p.x - n.pos.x, p.z - n.pos.z) > 0.5 || (n.pose || '') !== p.pose;
+    n.pose = p.pose;
+    if (moved) {
+      n.home = { x: p.x, z: p.z };
+      n.fixedY = p.y;
+      n.target = null;
+      const gy = p.y !== undefined ? p.y : groundAt(p.x, p.z);
+      n.pos.set(p.x, gy, p.z);
+      n.model.rotation.set(0, 0, 0); n.model.position.set(0, 0, 0);
+      if (n.legL) { n.legL.rotation.x = n.legR.rotation.x = 0; }
+      if (p.pose === 'lie') { n.model.rotation.x = -Math.PI / 2; n.model.position.set(0, 0.25, -0.9); n.face = 0.3; }
+      else if (p.pose === 'sit') { if (n.legL) n.legL.rotation.x = n.legR.rotation.x = -1.45; n.model.position.y = -0.55; n.model.rotation.x = 0.1; }
+      n.root.rotation.y = n.face;
+      if (!p.pose && n.d.path) {
+        const base = n.home;
+        n.path = n.d.path.map(([a, b]) => ({ x: base.x + a - n.d.path[0][0], z: base.z + b - n.d.path[0][1] }));
+      }
+    }
+  }
 }

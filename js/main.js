@@ -59,7 +59,7 @@ function exitDungeon() {
 
 /* ---------- 被ダメージ・力尽きる ---------- */
 function damagePlayer(amount, src) {
-  if (GAME.dead || player.hurtT > 0.35 || GAME.paused) return;
+  if (GAME.dead || player.hurtT > 0.35 || GAME.paused || CUT.active) return;
   const dmg = Math.max(1, Math.round(amount * 60 / (60 + STATE.def) * (0.9 + Math.random() * 0.2)));
   STATE.hp -= dmg;
   player.hurtT = 0.7;
@@ -98,6 +98,7 @@ function findInteract() {
   const n = nearestNPC(3.4);
   let best = n ? { npc: n, d: Math.hypot(n.pos.x - player.pos.x, n.pos.z - player.pos.z) } : null;
   for (const o of INTERACT) {
+    if (o.hidden) continue;
     const d = Math.hypot(o.x - player.pos.x, o.z - player.pos.z);
     if (d < o.r && (!best || d < best.d)) best = { obj: o, d, label: o.kind === 'warp' ? (STATE.warps.includes(o.ref.id) ? '転移石（地図を開く）' : o.label) : o.label };
   }
@@ -112,13 +113,14 @@ function doInteract() {
   if (o.kind === 'warp') activateWarp(o.ref);
   else if (o.kind === 'dungeon') enterDungeon();
   else if (o.kind === 'dungeonExit') exitDungeon();
+  else if (o.kind === 'captive') { o.hidden = true; rescueCaptive(o.ref); }
 }
 
 /* ---------- 入力 ---------- */
 const input = { x: 0, y: 0, run: false, jump: false };
 const keys = new Set();
 addEventListener('keydown', (e) => {
-  if (!GAME.started) return;
+  if (!GAME.started || CUT.active && !UI.dialog) return;
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.code)) e.preventDefault();
   if (e.repeat) { keys.add(e.code); return; }
   if (UI.dialog) {
@@ -135,9 +137,8 @@ addEventListener('keydown', (e) => {
   keys.add(e.code);
   switch (e.code) {
     case 'Space': input.jump = true; break;
-    case 'Digit1': selectElement('fire'); break;
-    case 'Digit2': selectElement('ice'); break;
-    case 'Digit3': selectElement('thunder'); break;
+    case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': case 'Digit5': case 'Digit6': case 'Digit7': case 'Digit8':
+      selectElement(ELEM_ORDER[+e.code.slice(5) - 1]); break;
     case 'KeyQ': toggleFocus(); break;
     case 'Tab': cycleTarget(); break;
     case 'KeyE': doInteract(); break;
@@ -184,7 +185,7 @@ canvas.addEventListener('pointerdown', (e) => {
   SOUND.init();
   if (!GAME.started) return;
   if (UI.dialog) { advanceDialog(); return; }
-  if (GAME.paused) return;
+  if (GAME.paused || CUT.active) return;
   canvas.setPointerCapture(e.pointerId);
   if (e.pointerType === 'touch' && e.clientX < innerWidth * 0.45 && joy.id === null) {
     joy.id = e.pointerId; joy.cx = e.clientX; joy.cy = e.clientY;
@@ -258,6 +259,7 @@ setMusicBtn();
 /* ---------- 場面に合わせて曲を選ぶ ---------- */
 function updateMusic() {
   if (!GAME.started) { SOUND.setMusic('title'); return; }
+  if (CUT.music) { SOUND.setMusic(CUT.music); return; }
   let boss = false, fight = false;
   for (const e of ENEMIES) {
     if (!e.alive || !e.active || !e.aggro) continue;
@@ -265,10 +267,14 @@ function updateMusic() {
     if (Math.hypot(e.pos.x - player.pos.x, e.pos.z - player.pos.z) < 45) fight = true;
   }
   if (fight || boss) GAME.lastFight = GAME.time;
+  // 大軍と戦っている
+  for (const g of ARMY.groups) { if (g.ally || !g.active) continue; for (const u of g.units) if (u.alive && u.state === 'chase' && u.d < 60) { fight = true; break; } if (fight) break; }
+  if (fight || boss) GAME.lastFight = GAME.time;
   const inTown = !GAME.inDungeon && (() => { const p = placeAt(player.pos.x, player.pos.z, 1.1); return p && !['start', 'ruins', 'dragon', 'spring'].includes(p.id); })();
   let want = 'field';
   if (boss) want = 'boss';
   else if (GAME.time - (GAME.lastFight ?? -99) < 5) want = 'battle';
+  else if (!STORY_FLAGS.liberated && !GAME.inDungeon && Math.hypot(player.pos.x - PLACE.aldia.x, player.pos.z - PLACE.aldia.z) < 520) want = 'requiem';
   else if (GAME.inDungeon) want = 'dungeon';
   else if (inTown) want = 'town';
   SOUND.setMusic(want);
@@ -344,16 +350,20 @@ function tick() {
   requestAnimationFrame(tick);
 }
 function titleFrame(dt, t) {
-  titleAngle += dt * 0.06;
+  titleAngle += dt * 0.03;
   updateMusic();
-  const r = 34, y = PLACE.start.fh;
-  camera.position.set(Math.sin(titleAngle) * r, y + 9, Math.cos(titleAngle) * r);
-  camera.lookAt(0, y + 2, 0);
+  // 燃える王都を遠くから
+  const P = PLACE.aldia, r = 330, y = P.fh;
+  camera.position.set(P.x + Math.sin(titleAngle) * r, y + 95, P.z + 40 + Math.cos(titleAngle) * r);
+  camera.lookAt(P.x, y + 10, P.z - 20);
   updateChunks(camera.position.x, camera.position.z, 1);
+  updateCapital(dt, t);
+  updateArmy(dt, t);
   for (const f of ANIM) f(dt, t);
   updateParticles(dt);
-  sun.position.set(0, 0, 0).addScaledVector(sunDir, 150);
-  sun.target.position.set(0, 0, 0);
+  updateFx(dt);
+  sun.position.set(P.x, 0, P.z).addScaledVector(sunDir, 150);
+  sun.target.position.set(P.x, 0, P.z);
   sky.position.copy(camera.position);
 }
 function frame(dt, t) {
@@ -362,17 +372,19 @@ function frame(dt, t) {
     GAME.time += dt;
     STATE.playTime += dt;
     const kb = readKeyboard();
-    input.x = GAME.dead ? 0 : clamp(kb.x + joy.x, -1, 1);
-    input.y = GAME.dead ? 0 : clamp(kb.y + joy.y, -1, 1);
+    const still = GAME.dead || CUT.active;
+    input.x = still ? 0 : clamp(kb.x + joy.x, -1, 1);
+    input.y = still ? 0 : clamp(kb.y + joy.y, -1, 1);
     input.run = kb.run || Math.hypot(joy.x, joy.y) > 0.92;
     updateCharge(dt);
     player.update(dt, input, cam.yaw, t, MAGIC.charging);
     // 自然回復
-    const inCombat = ENEMIES.some(e => e.aggro && e.active);
+    const inCombat = GAME.time - (GAME.lastFight ?? -99) < 4 || ENEMIES.some(e => e.aggro && e.active);
     STATE.mp = Math.min(STATE.aura, STATE.mp + STATE.aura * (MAGIC.charging ? 0 : inCombat ? 0.035 : 0.08) * dt);
     if (!inCombat && !GAME.dead) STATE.hp = Math.min(STATE.maxHp, STATE.hp + STATE.maxHp * 0.015 * dt);
     updateFocus(dt);
     updateEnemies(dt, t);
+    updateArmy(dt, t);
     updateNPCs(dt, t);
     updateProjectiles(dt);
     updateEnemyShots(dt);
@@ -384,10 +396,12 @@ function frame(dt, t) {
     // 世界の外に落ちたら戻す
     if (player.pos.y < -60) teleport(STATE.respawn.x, STATE.respawn.z);
   }
-  updateCamera(dt, false);
+  if (CUT.active && CUT.camOn) updateCutCamera(dt);
+  else updateCamera(dt, false);
   updateChunks(player.pos.x, player.pos.z, 1);
+  updateCapital(dt, t);
   updateAura(dt, t);
-  updateAimFx(dt, t, true);
+  updateAimFx(dt, t, !CUT.active);
   updateParticles(dt);
   updateFx(dt);
   updateLights(dt);
@@ -432,11 +446,20 @@ async function boot() {
   await new Promise(r => setTimeout(r, 0));
   player = new Player();
   player.pos.y = groundAt(player.pos.x, player.pos.z);
+  initArmyMeshes();
   spawnNPCs();
   spawnAllEnemies();
+  progress(0.97, '帝国軍が王都を包囲しています…');
+  await new Promise(r => setTimeout(r, 0));
+  spawnCapitalForces();
+  spawnCaptives();
+  spawnOccupation();
+  refreshNPCs();
   computeStats();
   STATE.mp = STATE.aura; STATE.hp = STATE.maxHp;
-  for (let i = 0; i < 40; i++) if (!updateChunks(0, 0, 4)) break;
+  player.root.visible = false;
+  player.pos.set(SPOTS.circle.x, groundAt(SPOTS.circle.x, SPOTS.circle.z), SPOTS.circle.z);
+  for (let i = 0; i < 40; i++) if (!updateChunks(PLACE.aldia.x, PLACE.aldia.z, 4)) break;
   progress(1, '準備ができました');
   GAME.ready = true;
   $('loading').classList.add('done');
@@ -456,14 +479,14 @@ function startGame(cont) {
     if (data) applySave(data);
     else teleport(CONFIG.spawn.x, CONFIG.spawn.z);
     banner(`クエスト：${mainStep().title}`, mainStep().obj);
+    setElementUI(); setFocusUI();
+    updateCamera(0, true);
   } else {
-    teleport(CONFIG.spawn.x, CONFIG.spawn.z);
+    STATE.respawn = { x: SPOTS.circle.x, z: SPOTS.circle.z + 3 };
     cam.yaw = 0;
-    player.facing = Math.PI;
-    banner('マホウノセカイ', 'はじまりの丘 — 焚き火のそばで目を覚ました');
+    setElementUI(); setFocusUI();
+    playPrologue();
   }
-  setElementUI(); setFocusUI();
-  updateCamera(0, true);
 }
 $('newBtn').addEventListener('click', () => {
   if (hasSave() && !confirm('記録が残っています。最初から始めると上書きされます。よろしいですか？')) return;
@@ -478,5 +501,5 @@ boot().catch((err) => {
 });
 
 // Claude Code などで拡張するときの入口（コンソールから触れる）
-window.game = { THREE, scene, camera, renderer, CONFIG, STATE, GAME, PLACES, NPCS, ENEMIES, get player() { return player; },
+window.game = { THREE, scene, camera, renderer, CONFIG, STATE, GAME, PLACES, NPCS, ENEMIES, ARMY, CAP, MAIN, get player() { return player; },
   heightAt: genHeight, terrainHeight, groundAt, addCollider, teleport, warpTo, gainExp };

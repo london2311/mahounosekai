@@ -1,45 +1,48 @@
 'use strict';
 /* =========================================================
-   主人公の状態
+   主人公の状態（還魂した王国魔法師団長 レグルス・アルスター）
    ========================================================= */
+const HERO = 'レグルス';
 const STATE = {
-  lvl: 1, exp: 0, baseAura: 100, auraMul: 1, aura: 100, mp: 100, hp: 100, maxHp: 100, def: 0, staffMult: 1,
-  gold: 30, element: 'fire', items: { potion: 3 }, keys: [], equip: { staff: 'staff0', robe: 'robe0' }, owned: ['staff0', 'robe0'],
-  main: 0, mainKills: 0, side: {}, warps: ['start'], met: [], crystals: [], respawn: { x: 0, z: 7 }, playTime: 0
+  lvl: 50, exp: 0, baseAura: 50000, auraMul: 1, aura: 50000, mp: 50000, hp: 30000, maxHp: 30000, def: 0, staffMult: 1.5,
+  gold: 0, element: 'fire', items: { hipotion: 5, ether: 5 }, keys: [], equip: { staff: 'staff_star', robe: 'robe_cmd' }, owned: ['staff_star', 'robe_cmd'],
+  main: 0, mainKills: 0, side: {}, warps: [], met: [], crystals: [], respawn: { x: -450, z: -440 }, playTime: 0,
+  generals: [], rescued: [], kills: 0, structKills: 0
 };
 
 const ITEMS = {
-  potion:   { name: '回復薬', desc: 'HPを回復する（最大HPの25%・最低60）', price: 30 },
-  hipotion: { name: '上回復薬', desc: 'HPを大きく回復する（最大HPの60%・最低250）', price: 150 },
+  potion:   { name: '回復薬', desc: 'HPを回復する（最大HPの25%）', price: 30 },
+  hipotion: { name: '上回復薬', desc: 'HPを大きく回復する（最大HPの60%）', price: 150 },
   ether:    { name: '魔力の水', desc: '魔力を40%回復する', price: 80 },
   dango:    { name: '峠の団子', desc: 'HPを40%、魔力を20%回復する', price: 60 },
   elixir:   { name: 'エリクサー', desc: 'HPと魔力を全回復する', price: 900 }
 };
 const KEY_ITEMS = {
-  letter:     { name: '紹介状', desc: '村長バルドが書いた、国王への紹介状。' },
-  tablet:     { name: '石版の欠片', desc: '遺跡の番人が守っていた古い石版。三つの星晶について記されている。' },
-  moonstar:   { name: '月の星晶', desc: '月影島の巫女から託された、淡く光る結晶。' },
-  dragonstar: { name: '竜の星晶', desc: '古竜ヴァルグが守っていた、燃えるように熱い結晶。' }
+  tome:     { name: '還魂の禁書', desc: '王女セシリアが命と引き換えに使った禁術の書。最後の頁に、震える字で「ごめんなさい、ありがとう」と書かれている。' },
+  ribbon:   { name: '王女の髪飾り', desc: 'セシリアが幼い頃から身につけていた青い髪飾り。' },
+  curse:    { name: '呪詛の記録', desc: '第四将モルテが持っていた文書。五年前の「病死」が、宰相ゼノンの呪いだったことが記されている。' }
 };
 const EQUIP = {
+  staff_star: { slot: 'staff', name: '星墜としの杖', mult: 1.5, desc: '魔法師団長の杖。五年の眠りを経ても、主を覚えていた。' },
   staff0: { slot: 'staff', name: '見習いの杖', mult: 1.0, desc: '使い込まれた木の杖。' },
   staff1: { slot: 'staff', name: '樫の杖', mult: 1.25, price: 250, desc: '魔法の威力 ×1.25' },
   staff2: { slot: 'staff', name: '魔導の杖', mult: 1.6, price: 1500, desc: '魔法の威力 ×1.6' },
   staff3: { slot: 'staff', name: '月長石の杖', mult: 2.0, price: 4500, desc: '魔法の威力 ×2.0' },
   staff4: { slot: 'staff', name: '賢者の杖', mult: 2.6, price: 12000, desc: '魔法の威力 ×2.6' },
   staff5: { slot: 'staff', name: '星詠みの杖', mult: 3.4, price: 30000, desc: '魔法の威力 ×3.4' },
+  robe_cmd: { slot: 'robe', name: '師団長の礼装', def: 20, hp: 3000, desc: '守り+20 / 最大HP+3000' },
   robe0:  { slot: 'robe', name: '旅人の服', def: 0, hp: 0, desc: 'ごく普通の服。' },
-  robe1:  { slot: 'robe', name: '見習いのローブ', def: 4, hp: 20, price: 150, desc: '守り+4 / 最大HP+20' },
-  robe2:  { slot: 'robe', name: '魔導士のローブ', def: 10, hp: 60, price: 1000, desc: '守り+10 / 最大HP+60' },
-  robe3:  { slot: 'robe', name: '砂塵のマント', def: 18, hp: 120, price: 3800, desc: '守り+18 / 最大HP+120' },
-  robe4:  { slot: 'robe', name: '潮騒の外套', def: 24, hp: 180, price: 6500, desc: '守り+24 / 最大HP+180' },
-  robe5:  { slot: 'robe', name: '帝国魔導衣', def: 32, hp: 260, price: 11000, desc: '守り+32 / 最大HP+260' }
+  robe1:  { slot: 'robe', name: '見習いのローブ', def: 4, hp: 400, price: 150, desc: '守り+4 / 最大HP+400' },
+  robe2:  { slot: 'robe', name: '魔導士のローブ', def: 10, hp: 1200, price: 1000, desc: '守り+10 / 最大HP+1200' },
+  robe3:  { slot: 'robe', name: '砂塵のマント', def: 24, hp: 3600, price: 3800, desc: '守り+24 / 最大HP+3600' },
+  robe4:  { slot: 'robe', name: '潮騒の外套', def: 28, hp: 4200, price: 6500, desc: '守り+28 / 最大HP+4200' },
+  robe5:  { slot: 'robe', name: '帝国魔導衣', def: 36, hp: 6000, price: 11000, desc: '守り+36 / 最大HP+6000' }
 };
 const SHOPS = {
   kazami_item:   ['potion', 'ether'],
   kazami_weapon: ['staff1', 'robe1'],
-  aldia_weapon:  ['staff1', 'staff2', 'robe1', 'robe2'],
-  aldia_item:    ['potion', 'hipotion', 'ether'],
+  aldia_weapon:  ['staff2', 'staff3', 'robe2', 'robe3'],
+  aldia_item:    ['potion', 'hipotion', 'ether', 'elixir'],
   belka_weapon:  ['staff2', 'staff3', 'robe2', 'robe3'],
   belka_item:    ['potion', 'hipotion', 'ether', 'elixir'],
   oasis_shop:    ['robe3', 'hipotion', 'ether'],
@@ -56,7 +59,7 @@ function computeStats() {
   const staff = EQUIP[STATE.equip.staff], robe = EQUIP[STATE.equip.robe];
   const oldAura = STATE.aura;
   STATE.aura = STATE.baseAura * STATE.auraMul * Math.pow(1.08, STATE.crystals.length);
-  STATE.maxHp = 100 + 20 * (STATE.lvl - 1) + robe.hp;
+  STATE.maxHp = 2000 + 500 * STATE.lvl + robe.hp;
   STATE.def = robe.def;
   STATE.staffMult = staff.mult;
   if (STATE.aura > oldAura) STATE.mp += STATE.aura - oldAura;
@@ -94,8 +97,8 @@ function useItem(id) {
   if (!STATE.items[id]) return false;
   const H = STATE.maxHp, A = STATE.aura;
   switch (id) {
-    case 'potion': STATE.hp = Math.min(H, STATE.hp + Math.max(60, H * 0.25)); break;
-    case 'hipotion': STATE.hp = Math.min(H, STATE.hp + Math.max(250, H * 0.6)); break;
+    case 'potion': STATE.hp = Math.min(H, STATE.hp + H * 0.25); break;
+    case 'hipotion': STATE.hp = Math.min(H, STATE.hp + H * 0.6); break;
     case 'ether': STATE.mp = Math.min(A, STATE.mp + A * 0.4); break;
     case 'dango': STATE.hp = Math.min(H, STATE.hp + H * 0.4); STATE.mp = Math.min(A, STATE.mp + A * 0.2); break;
     case 'elixir': STATE.hp = H; STATE.mp = A; break;
@@ -130,107 +133,182 @@ function buy(id) {
 }
 
 /* =========================================================
-   物語（第一章「灯火の魔法使い」）
+   帝国十将の言葉
+   ========================================================= */
+const BOSS_LINES = {
+  g10: {
+    intro: [['グラウス', 'なんだァ？ 新しい玩具か。いいねェ、その目。どこまで保つか試して——'],
+      ['グラウス', '……待て。その顔……五年前に死んだはずの……“星墜とし”のレグルス！？'],
+      [HERO, '部屋の外まで聞こえていた。あの子の悲鳴も、お前の笑い声も'],
+      [HERO, '同じだけ鳴いてもらう。——いや、そんな時間はやらない']],
+    defeat: [['グラウス', 'ば、化け物……帝国は……帝国には、まだ九人……'], [HERO, '数えておけ。残り九人だ']]
+  },
+  g9: {
+    intro: [['バルドゥル', '三千の槍を前に、たった一人で何ができる。王国の亡霊め、墓に還れ！'],
+      [HERO, '三千か。……この国の民は、十万いた'],
+      [HERO, 'お前たちが殺した数に、到底足りない']],
+    defeat: [['バルドゥル', '三千が……ひと晩で……これが、星墜とし……'], [HERO, '王都の空に、もう煙は上がらない']]
+  },
+  g8: {
+    intro: [['イグナーツ', '燃やすのが好きでな。村ってのは、よく燃える。人もな'],
+      [HERO, '風見の村の風車は、百年回っていた'],
+      [HERO, '炎の本当の使い方を教えてやる']],
+    defeat: [['イグナーツ', '炎で……俺が、焼かれる……？ ああ、熱い……熱い……'], [HERO, '村の者たちも、そう言ったはずだ']]
+  },
+  g7: {
+    intro: [['ヘルミーネ', '王国の魔法使いは、みんな狩ったはずなのに。まだ残っていたのね'],
+      ['ヘルミーネ', '学生たち？ 実験台にちょうどよかったわ。魔力の器を開いたら、どうなるのか'],
+      [HERO, '……ここは、子供たちが魔法を学ぶ場所だ']],
+    defeat: [['ヘルミーネ', 'わたしの結界を……紙みたいに……あなた、何者……'], [HERO, '王国魔法師団長。……この学院の、最初の卒業生だ']]
+  },
+  g4: {
+    intro: [['モルテ', '千年の封印、宰相閣下のために掘り起こしてやったのさ。邪魔をするな、死に損ない'],
+      ['モルテ', '……おや？ お前、呪いで死んだはずの……ひひ、閣下がお喜びになる'],
+      [HERO, '呪い、だと？']],
+    defeat: [['モルテ', '宰相閣下……約束が、違……う……'], ['システム', '（モルテの懐から、古い文書が落ちた）']]
+  },
+  g6: {
+    intro: [['ドルガン', 'この峠は俺の砦だ。王国の亡霊だろうが、誰一人通さねえ'],
+      [HERO, '山を崩す男だと聞いた'],
+      [HERO, '俺は、星を落とす']],
+    defeat: [['ドルガン', '山より……重い……'], [HERO, '峠を越える。次は帝国だ']]
+  },
+  g5: {
+    intro: [['レイヴン', '速さなら十将一。魔法使いが詠唱する間に、首を落とす'],
+      [HERO, 'やってみろ']],
+    defeat: [['レイヴン', '見えな……かった……詠唱すら……'], [HERO, '詠唱なら、五年前に済ませてある']]
+  },
+  g3: {
+    intro: [['ジークリンデ', '空は竜のものよ。地を這う魔法使いに、届くものか'],
+      [HERO, '竜を無理やり従わせたな。首の鎖が見える'],
+      ['ジークリンデ', '……黙れ！ ヴァルグ、焼き払え！']],
+    defeat: [['ジークリンデ', 'ヴァルグ……ごめんね……わたし……'], [HERO, '竜は、鎖から解かれた。……お前もだ']]
+  },
+  g2: {
+    intro: [['アウグスト', '雷で俺に挑むか。王国の魔法使いよ、面白い'],
+      ['アウグスト', '帝都の門は、俺が立つ限り開かぬ'],
+      [HERO, '門なら、もう開いている。お前の後ろだ']],
+    defeat: [['アウグスト', '俺の雷が……児戯……か……'], [HERO, '宮殿まで、あと一人']]
+  },
+  g1: {
+    intro: [['ヴィルヘルム', '……レグルス・アルスター。五年前、貴様と刃を交えたかった'],
+      ['ヴィルヘルム', '貴様が病で死んだと聞いたとき、俺は落胆した。……病ではなかったのだろう？'],
+      [HERO, '知っていたのか'],
+      ['ヴィルヘルム', '知っていて、何もしなかった。剣しか持たぬ男の罪だ。——来い。せめて、剣士として死なせろ']],
+    defeat: [['ヴィルヘルム', '……満足だ。……皇帝陛下は、宰相に……心を……奪われて……いる……'],
+      ['ヴィルヘルム', '……止めて、くれ……'], ['システム', '（宮殿を覆っていた結界が、音を立てて砕けた）']]
+  },
+  zenon: {
+    intro: [['ゼノン', 'ようこそ、星墜とし殿。いや——死に損ない殿'],
+      ['ゼノン', '五年前、あなたに呪いを仕込んだのは、この私ですよ。“病死”。ええ、実に美しい響きでしょう？'],
+      ['ゼノン', '王国の英雄を一人ずつ、病と事故で。三十倍の軍など、ただの後片付けです'],
+      ['ゼノン', 'そして仕上げは、あの愚かな王女。己の命で、あなたを呼び戻した。……おかげで、あなたの魂を虚無の王への供物にできる'],
+      [HERO, '……セシリアの命を、供物と呼んだか'],
+      [HERO, 'ゼノン。お前には、呪いも、病も、事故もない'],
+      [HERO, '俺が、この手で消す']],
+    defeat: [['ゼノン', 'ば、馬鹿な……虚無の王の力を……弱い魔法で……いや、これは……“星”……'],
+      [HERO, '還れ。お前の主のところへ'], ['ヴァルゼル', '……っ、ぐ……余は……何を……。……王国に……何ということを……']]
+  },
+  emperor: {
+    intro: [['ヴァルゼル', '……ゼノン……ゼノン、余を……助けよ……（皇帝の瞳は、虚ろだ）']],
+    defeat: [['ヴァルゼル', '……ありがとう……王国の魔法使い……ゼノンの声が……聞こえない……']]
+  }
+};
+
+/* =========================================================
+   物語（序章「還魂」／第一章「反撃の狼煙」／第二章「帝国侵攻」）
    ========================================================= */
 const SYS = 'システム';
 const MAIN = [
-  { title: '目覚め', obj: '焚き火のそばの占い師ミラに話しかけよう', talk: 'mira',
-    say: [
-      ['ミラ', '……ようやく目を覚ましたね。'],
-      ['ミラ', '無理に思い出そうとしなくていい。君の名はルカ。…今はそれだけ覚えていれば十分さ。'],
-      ['ミラ', '君の手には、炎・氷・雷。三つの小さな灯がともっている。弱い魔法だけど…君が使えば話は別だ。'],
-      ['ミラ', '君のオーラ——魔力の器には、底がない。込めれば込めるほど、魔法はどこまでも大きくなる。'],
-      ['ミラ', 'まずは南の『風見の村』へ行きなさい。村長のバルドが力になってくれるはずさ。'],
-      [SYS, IS_TOUCH ? '左側をなぞって移動、右側をなぞって視点。「詠唱」ボタンを長押しすると魔力を込め、離すと放つ。' :
-        'WASDで移動、ドラッグで視点。左クリック（またはFキー）を長押しすると魔力を込め、離すと放つ。'],
-      [SYS, IS_TOUCH ? '炎・氷・雷のボタンで属性を切り替え。◎ボタンはオートフォーカス（自動で敵を狙う）。' :
-        '1・2・3キーで炎・氷・雷を切り替え。Qでオートフォーカスの切替、Tabで狙いの変更。Eで話す、Mで地図、Iで持ち物。']
-    ] },
-  { title: '風見の村へ', obj: '南の「風見の村」で村長バルドに会おう', talk: 'bald',
-    say: [
-      ['バルド', 'ほう…ミラの紹介か。あの占い師が何者なのか、わしにもさっぱり分からんのじゃ。'],
-      ['バルド', 'ルカ、と言ったか。記憶がない？ …ふむ、困ったもんじゃな。'],
-      ['バルド', 'それより頼みがある。最近、村のまわりにスライムが増えて困っとるんじゃ。'],
-      ['バルド', '3匹ほど退治してくれんか。はじまりの丘のあたりにたくさんおる。雷の魔法に弱いと聞くぞ。']
-    ] },
-  { title: 'スライム退治', obj: 'スライムを倒そう', kill: 'slime', n: 3, mark: { x: 20, z: 60 } },
-  { title: '村長への報告', obj: '風見の村の村長バルドに報告しよう', talk: 'bald',
-    say: [
-      ['バルド', 'おお、本当にやってくれたか！ わしの若い頃はな…いや、今はいい。'],
-      ['バルド', '礼じゃ。少ないが受け取ってくれ。'],
-      ['バルド', '…それとな。お前さんの魔法、ただごとではない。王都アルディアの国王陛下にお会いするとええ。'],
-      ['バルド', '紹介状を書いておいた。北西の街道を進めば、大きな城壁が見えてくるはずじゃ。']
-    ], reward: { gold: 100, items: { potion: 3 }, key: 'letter' } },
-  { title: '王都アルディアへ', obj: '北西の王都アルディアへ行き、城の謁見の間で国王に会おう', talk: 'king',
-    say: [
-      [SYS, '（紹介状を差し出した）'],
-      ['レオンハルト三世', '…ふむ、風見の村のバルドからか。懐かしい名だ。'],
-      ['レオンハルト三世', '旅の魔法使いルカよ。近ごろ、各地で魔物が凶暴になっておる。'],
-      ['レオンハルト三世', '千年前、大魔導士アルマが『虚無の王』を封じた封印…それが揺らいでおるのやもしれぬ。'],
-      ['レオンハルト三世', '王都の東、山のふもとにある魔法学院を訪ねよ。学院長セレスはこの国一の魔導士。そなたの力の正体も、きっと分かるだろう。']
-    ], reward: { gold: 300 } },
-  { title: '魔法学院', obj: '魔法学院の学院長セレスに会おう', talk: 'seles',
-    say: [
-      ['セレス', 'あなたがルカね。陛下から話は聞いています。'],
-      ['セレス', '…なるほど。確かに、見たことのない種類のオーラ。'],
-      ['セレス', 'でも力は、使いこなしてこそ。試練を与えましょう。'],
-      ['セレス', '王都の東の街道に、ゴブリンの群れが住みついています。5体、退治してきなさい。'],
-      ['セレス', '炎がよく効くはずよ。杖を掲げて長く込めれば、魔法は大きくなる。…やりすぎないようにね。']
-    ] },
-  { title: '学院長の試練', obj: '王都の東の街道でゴブリンを倒そう', kill: 'goblin', n: 5, mark: { x: -230, z: -200 } },
-  { title: '試練の報告', obj: '魔法学院の学院長セレスに報告しよう', talk: 'seles',
-    say: [
-      ['セレス', 'お見事。…やはり、あなたのオーラには限界がないようね。'],
-      ['セレス', 'かつて、同じ力を持つ者がいました。千年前の大魔導士アルマ。'],
-      ['セレス', '伝承では、その力は『無限のオーラ』と呼ばれていた。器が大きくなるほど、弱い魔法すら天変地異になる…。'],
-      ['セレス', '西の古代遺跡の地下迷宮に、封印の間があるはず。最近、遺跡の番人が目覚めたと報告がありました。'],
-      ['セレス', '調べてきて。あなたなら、きっと大丈夫。']
-    ], reward: { gold: 500, items: { ether: 2 } } },
-  { title: '古代遺跡の地下迷宮', obj: '西の古代遺跡から地下迷宮に入り、最深部の番人を倒そう', kill: 'guardian', n: 1, mark: 'dungeon' },
-  { title: '石版の謎', obj: '魔法学院の学院長セレスに石版の欠片を見せよう', talk: 'seles',
-    say: [
-      [SYS, '（石版の欠片を見せた）'],
-      ['セレス', '…これは、封印の石版。読める部分だけ訳すわ。'],
-      ['セレス', '『虚無の王を縛るは三つの星晶。月の星晶、竜の星晶、そして帝の星晶』'],
-      ['セレス', '月の星晶は月影島の巫女が、竜の星晶は竜の峰の古竜が、そして帝の星晶はガルヴァス帝国が守っているはず。'],
-      ['セレス', '帝国の宰相ゼノンが星晶を狙っている…という噂があるわ。まずは帝国へ。北の山道を越えて、皇帝に会って。']
-    ], reward: { gold: 800 } },
-  { title: '山道を越えて', obj: '北の山道と霧の峠を越え、帝都ガルヴァスの宮殿で皇帝に会おう', talk: 'emperor',
-    say: [
-      ['ヴァルゼル', '…王国の魔法使いか。余に何の用だ。'],
-      ['ヴァルゼル', '帝の星晶だと？ …あれは、ひと月前に何者かに盗まれた。'],
-      ['ゼノン', '陛下、そのようなことを他国の者にお話しになっては困りますな。くくく…。'],
-      ['ヴァルゼル', '……下がれ、ゼノン。'],
-      ['ヴァルゼル', '魔法使いよ。南の海の月影島へ行き、巫女を訪ねよ。…手遅れになる前にな。'],
-      ['ゼノン', '（小声で）…実に興味深いオーラだ。いずれ、ゆっくりお話ししましょう。']
-    ] },
-  { title: '月影島の巫女', obj: '港町マリナの東の桟橋から船で月影島へ渡り、巫女ツクヨに会おう', talk: 'tsukuyo',
-    say: [
-      ['ツクヨ', 'お待ちしていました、ルカさん。月が、あなたの来訪を告げていました。'],
-      ['ツクヨ', '昨夜、黒い衣の男がこの島に来ました。星晶を渡せと。…月の光が退けてくれましたが。'],
-      ['ツクヨ', 'この月の星晶を、あなたに託します。あなたの無限のオーラなら、きっと守り抜ける。'],
-      ['ツクヨ', '最後の星晶は、竜の峰の古竜ヴァルグが守っています。古竜は、力を示した者にしか星晶を渡しません。'],
-      ['ツクヨ', '古竜は氷に弱いと言われています。…どうか、ご無事で。']
-    ], reward: { key: 'moonstar', items: { hipotion: 2 } } },
-  { title: '竜の峰', obj: '古代遺跡の北、竜の峰の頂に棲む古竜ヴァルグを倒そう', kill: 'dragon', n: 1, mark: { x: -920, z: -980 } },
-  { title: '帰還', obj: '魔法学院の学院長セレスに報告しよう', talk: 'seles',
-    say: [
-      ['セレス', '…本当に古竜を。あなたという人は。'],
-      ['セレス', '月の星晶と竜の星晶。これで封印の半分以上は取り戻せた。'],
-      ['セレス', 'でも帝の星晶は、宰相ゼノンの手に…。彼こそ、虚無の王の使徒なのかもしれない。'],
-      ['セレス', '…ルカ。あなたの旅は、まだ始まったばかりよ。']
-    ], reward: { gold: 3000 }, end: true },
-  { title: '第一章 完', obj: '世界を自由に旅しよう（第二章につづく）' }
+  { ch: '序章「還魂」', title: '城内掃討', obj: '城に入り込んだ帝国兵を一掃せよ', zone: 'castle' },
+  { ch: '序章「還魂」', title: '嗤う屠殺者', obj: '南東の部屋で捕虜を嬲る第十将グラウスを討て', boss: 'g10', mark: 'roomF' },
+  { ch: '序章「還魂」', title: '五年の空白', obj: '謁見の間のセレスと話す', talk: 'seles',
+    say: [['セレス', '……本当に、あなたなのね。……ばかみたい。泣いてる暇なんてないのに'],
+      [HERO, '状況を'],
+      ['セレス', '王国軍は壊滅。騎士団長ガレスは重傷。あなたの側近——ヴォルク、ユキナ、ライガが、中庭で最後の防衛線を張ってる。……もう、半日も持たない'],
+      ['セレス', '城下はもっと酷い。逃げ遅れた人たちが、今も広場で……。……ごめんなさい、言葉にできない'],
+      ['セレス', 'レグルス。あなたが死んでから、何もかもおかしくなったの。英雄たちが次々に「事故」や「病」で死んで……'],
+      [HERO, '……その話は、後で聞く。中庭から片づける']] },
+  { ch: '序章「還魂」', title: '最後の防衛線', obj: '中庭で戦う側近たちを援護し、押し寄せる帝国兵を殲滅せよ', zone: 'courtyard' },
+  { ch: '序章「還魂」', title: '再会', obj: '中庭の副団長ヴォルクと話す', talk: 'volk',
+    say: [['ヴォルク', '……は、はは……幻か？ 死に際に見る夢ってのは、こんなに都合がいいのか'],
+      [HERO, '立て、ヴォルク。副団長がそのザマでどうする'],
+      ['ヴォルク', '団長……！ ……っ、団長ぉぉ！'],
+      ['ユキナ', '……五年。五年よ、団長。……遅すぎる'],
+      ['ライガ', '団長！ 城下がやばい！ 奴ら、捕まえた奴を広場や通りで……遊んでやがる！'],
+      [HERO, '……案内は要らない。悲鳴の聞こえる方へ行く']] },
+  { ch: '序章「還魂」', title: '城下の地獄', obj: '城下町で嬲られている人々を救い出せ', rescue: 5 },
+  { ch: '序章「還魂」', title: '三千の槍', obj: '城外に陣取る帝国軍を薙ぎ払い、南の本陣の第九将バルドゥルを討て', boss: 'g9', mark: 'siegeHQ' },
+  { ch: '序章「還魂」', title: '弔いと誓い', obj: '謁見の間の国王レオンハルトのもとへ戻る', talk: 'king',
+    say: [['レオンハルト', '……終わったのか。三千の帝国兵が、たった一夜で……'],
+      [HERO, '陛下。……姫を、守れませんでした'],
+      ['レオンハルト', '……いや。娘は、守ったのだ。この国を。お前を呼んで'],
+      [SYS, '翌朝、王都の広場で、死者たちの葬送が行われた。数えきれない棺。棺の足りない者は、布に包まれて並べられた。'],
+      [SYS, '生き残った人々は、泣くことさえ忘れたように、ただ黙って土をかけ続けた。'],
+      [HERO, '姫。……あなたは、泣き虫の小さな子供だったのに'],
+      [HERO, 'あなたの命は、無駄にしない'],
+      [HERO, '帝国十将、残り八人。皇帝ヴァルゼル。そして、この五年の裏で糸を引いた者'],
+      [HERO, '一人残らず、報いを受けさせる'],
+      ['レオンハルト', '……レグルス・アルスター。王国魔法師団長の任を、改めて命ずる。——征け']],
+    reward: { gold: 5000, key: 'ribbon', items: { elixir: 3 } }, after: 'liberate' },
+  { ch: '第一章「反撃の狼煙」', title: '燃える風車', obj: '南の風見の村を占拠する第八将イグナーツを討て', boss: 'g8', mark: 'kazami' },
+  { ch: '第一章「反撃の狼煙」', title: '魔女狩り', obj: '王都の北東、魔法学院を占拠する第七将ヘルミーネを討て', boss: 'g7', mark: 'academy' },
+  { ch: '第一章「反撃の狼煙」', title: '墓暴き', obj: '西の古代遺跡で封印を暴く第四将モルテを討て', boss: 'g4', mark: 'ruins', reward: { key: 'curse' } },
+  { ch: '第一章「反撃の狼煙」', title: '病の正体', obj: '魔法学院のセレスに、モルテの文書を見せる', talk: 'seles',
+    say: [['セレス', '……読んだわ。五年前の、あなたの「病」。あれは病じゃない。呪いよ'],
+      ['セレス', '呪いの術式に刻まれた名は——宰相ゼノン'],
+      [HERO, '……そうか。だから、俺は死んだのか'],
+      ['セレス', 'それだけじゃない。前の騎士団長も、賢者オルフェも、宮廷魔術師ザカリアも……この五年で死んだ英雄たちは、みんな'],
+      ['セレス', 'あなたを殺して、英雄を一人ずつ消して、最後に三十倍の軍で踏み潰す。……最初から、全部が一つの計画だった'],
+      [HERO, '帝国へ行く。北の霧の峠を越える'],
+      ['セレス', '……止めないわ。でも、約束して。今度は、ちゃんと帰ってきて']] },
+  { ch: '第一章「反撃の狼煙」', title: '峠の砦', obj: '北の霧の峠に築かれた砦で、第六将ドルガンを討て', boss: 'g6', mark: 'pass' },
+  { ch: '第二章「帝国侵攻」', title: '双剣', obj: '帝国の関所を守る第五将レイヴンを討て', boss: 'g5', mark: 'gate' },
+  { ch: '第二章「帝国侵攻」', title: '竜騎', obj: '西の竜の峰で、古竜を駆る第三将ジークリンデを討て', boss: 'g3', mark: 'dragon' },
+  { ch: '第二章「帝国侵攻」', title: '雷帝', obj: '帝都ガルヴァスの南門を守る第二将アウグストを討て', boss: 'g2', mark: 'empireGate' },
+  { ch: '第二章「帝国侵攻」', title: '剣聖', obj: '宮殿の前に立つ第一将ヴィルヘルムを討て', boss: 'g1', mark: 'palace', after: 'palace' },
+  { ch: '第二章「帝国侵攻」', title: '虚無の使徒', obj: '宮殿の玉座の間で、宰相ゼノンを討て', boss: 'zenon', mark: 'emperorThrone' },
+  { ch: '第二章「帝国侵攻」', title: '還る場所', obj: '王都アルディアに戻り、国王に報告する', talk: 'king',
+    say: [['レオンハルト', '……帰ったか。……よくぞ、帰った'],
+      [HERO, '帝国十将は倒れました。宰相ゼノンも。皇帝ヴァルゼルは呪縛から解かれ、和平を申し出ています'],
+      ['レオンハルト', '……和平、か。失ったものは、何ひとつ戻らぬ。それでも……'],
+      [HERO, 'それでも、生きている者がいます。パン屋のゴードンは、店を建て直しました。ロイは、また門に立っています'],
+      [SYS, '王都の空に、久しぶりに風車の音が届いた。風見の村から運ばれてきた、新しい羽根の音だった。'],
+      [HERO, '姫。……ただいま、帰りました'],
+      [HERO, 'あなたが守ったこの国は、まだ、ここにあります']],
+    end: true },
+  { ch: '終章', title: '再建の日々', obj: '世界を自由に旅しよう（残った帝国兵や魔物もいる）' }
 ];
+const GENERAL_OF = { kazami: 'g8', academy: 'g7', ruins: 'g4', pass: 'g6', gate: 'g5', empire: 'zenon' };
+function occupied(place) { const g = GENERAL_OF[place]; return g ? !STATE.generals.includes(g) : false; }
 
+function cityRescued() { return (STATE.rescued || []).filter(id => id !== 'cap_roy' && id !== 'cap_karl').length; }
 function mainStep() { return MAIN[Math.min(STATE.main, MAIN.length - 1)]; }
+function stepDone(s) {
+  if (s.zone) return zoneAlive(s.zone) === 0;
+  if (s.boss) return STATE.generals.includes(s.boss);
+  if (s.rescue) return cityRescued() >= s.rescue;
+  return false;
+}
 function advanceMain() {
+  const prevCh = mainStep().ch;
+  const prev = mainStep();
+  if (prev.after === 'liberate') setCapitalLiberated(true);
+  if (prev.after === 'palace') { STATORY_palace(); }
   STATE.main++;
-  STATE.mainKills = 0;
+  // すでに済んでいる目標は飛ばす
+  while (STATE.main < MAIN.length - 1 && stepDone(mainStep())) STATE.main++;
   const s = mainStep();
-  banner(`クエスト：${s.title}`, s.obj);
+  refreshNPCs();
+  if (s.ch !== prevCh) setTimeout(() => chapterCard(prevCh, s.ch), 600);
+  else banner(`${s.title}`, s.obj);
   SOUND.quest();
   saveGame(true);
+}
+function STATORY_palace() { STORY_FLAGS.palaceOpen = true; for (const st of STRUCTS) if (st.palace) st.protect = false; }
+function checkMainProgress() {
+  const s = mainStep();
+  if ((s.zone || s.boss || s.rescue) && stepDone(s)) advanceMain();
 }
 function giveReward(r) {
   if (!r) return;
@@ -241,36 +319,72 @@ function giveReward(r) {
 }
 function questMarker() {
   const s = mainStep();
-  if (s.talk) { const n = NPC_BY_ID[s.talk]; return n ? { x: n.pos.x, z: n.pos.z } : null; }
-  if (s.mark === 'dungeon') return GAME.inDungeon ? DUNGEON.boss : SPOTS.dungeonDoor;
-  return s.mark || null;
+  if (s.talk) { const n = NPC_BY_ID[s.talk]; return n && n.root.visible !== false ? { x: n.pos.x, z: n.pos.z } : null; }
+  if (s.boss) {
+    const e = ENEMIES.find(en => en.type === s.boss && en.alive);
+    if (e && Math.hypot(e.pos.x - player.pos.x, e.pos.z - player.pos.z) < 300) return { x: e.pos.x, z: e.pos.z };
+  }
+  if (s.zone) {
+    let best = null, bd = Infinity;
+    for (const e of ENEMIES) if (e.zone === s.zone && e.alive) { const d = Math.hypot(e.pos.x - player.pos.x, e.pos.z - player.pos.z); if (d < bd) { bd = d; best = e.pos; } }
+    for (const g of ARMY.groups) if (g.zone === s.zone) for (const u of g.units) if (u.alive) { const d = Math.hypot(u.x - player.pos.x, u.z - player.pos.z); if (d < bd) { bd = d; best = u; } }
+    return best ? { x: best.x, z: best.z } : null;
+  }
+  if (s.rescue) {
+    let best = null, bd = Infinity;
+    for (const sc of CAP.scenes) if (!sc.rescued && !sc.c.spot) { const d = Math.hypot(sc.x - player.pos.x, sc.z - player.pos.z); if (d < bd) { bd = d; best = sc; } }
+    return best;
+  }
+  const m = s.mark;
+  if (m && SPOTS[m]) return SPOTS[m];
+  if (m && PLACE[m]) return PLACE[m];
+  if (m === 'palace') return { x: PLACE.empire.x, z: PLACE.empire.z - 40 };
+  return null;
+}
+function objectiveText() {
+  const s = mainStep();
+  let t = s.obj;
+  if (s.zone) t += `（残り ${zoneAlive(s.zone)}）`;
+  if (s.rescue) t += `（${cityRescued()} / ${s.rescue}）`;
+  return t;
 }
 
+/* ---------- 出来事の知らせ ---------- */
 function onEnemyKilled(type) {
-  const s = mainStep();
-  if (s.kill === type) {
-    STATE.mainKills++;
-    if (STATE.mainKills >= s.n) {
-      if (type === 'guardian') addKey('tablet');
-      if (type === 'dragon') {
-        addKey('dragonstar');
-        setTimeout(() => banner('古竜ヴァルグを倒した！', '竜の星晶を手に入れた'), 600);
-      }
-      advanceMain();
-    } else toast(`${ETYPES[type].name} ${STATE.mainKills} / ${s.n}`, 'quest');
+  const T = ETYPES[type];
+  if (T && (T.general !== undefined || type === 'zenon' || type === 'emperor')) {
+    if (!STATE.generals.includes(type)) STATE.generals.push(type);
+    const L = BOSS_LINES[type];
+    if (L && L.defeat) setTimeout(() => openDialog(L.defeat.map(([who, t]) => ({ who, t })), () => afterBoss(type)), 900);
+    else afterBoss(type);
   }
   for (const n of NPCS) {
     const q = n.side;
     if (!q || q.kill !== type) continue;
     const st = STATE.side[q.id];
-    if (st && st.state === 1 && st.count < q.n) {
-      st.count++;
-      toast(`依頼「${n.name}」 ${ETYPES[type].name} ${st.count} / ${q.n}`, 'quest');
-    }
+    if (st && st.state === 1 && st.count < q.n) { st.count++; toast(`依頼「${n.name}」 ${ETYPES[type].name} ${st.count} / ${q.n}`, 'quest'); }
   }
+  setTimeout(checkMainProgress, 50);
 }
+function afterBoss(type) {
+  if (type === 'g4') addKey('curse');
+  if (type === 'g1') STATORY_palace();
+  if (type === 'zenon') { const em = ENEMIES.find(e => e.type === 'emperor' && e.alive); if (em) { em.alive = false; em.deathT = 9; em.root.visible = false; } }
+  for (const [place, g] of Object.entries(GENERAL_OF)) {
+    if (g !== type || place === 'gate') continue;
+    // 将を失った兵は逃げ出す
+    let fled = 0;
+    for (const gr of ARMY.groups) if (gr.zone === place || (place === 'empire' && gr.zone === 'palace')) for (const u of gr.units) if (u.alive) { u.alive = false; fled++; }
+    for (const e of ENEMIES) if ((e.zone === place || (place === 'empire' && e.zone === 'palace')) && e.alive && !e.T.boss) { e.alive = false; e.deathT = 9; e.root.visible = false; fled++; }
+    if (fled) toast(`${PLACE[place] ? PLACE[place].name : place}から、帝国兵が逃げ出した`, 'quest');
+  }
+  refreshNPCs();
+  checkMainProgress();
+}
+function onArmyKilled() { checkMainProgress(); }
+function onCaptiveRescued() { checkMainProgress(); }
 
-// 話しかけたときの流れ
+/* ---------- 話しかけたとき ---------- */
 function talkTo(npc) {
   const d = npc.d;
   npc.talking = true;
@@ -281,14 +395,15 @@ function talkTo(npc) {
     const lines = s.say.map(([who, t]) => ({ who, t, role: who === d.name ? d.role : '' }));
     openDialog(lines, () => {
       giveReward(s.reward);
-      if (s.end) setTimeout(() => chapterEnd(), 400);
+      if (s.end) setTimeout(() => chapterCard('第二章「帝国侵攻」', 'end'), 400);
       advanceMain();
       done();
     });
     return;
   }
   const L = (t) => ({ who: d.name, role: d.role, t });
-  if (d.side) {
+  const siege = !STORY_FLAGS.liberated && d.siege;
+  if (d.side && !siege) {
     const q = d.side;
     const st = STATE.side[q.id];
     if (!st) {
@@ -299,20 +414,19 @@ function talkTo(npc) {
       return;
     }
     if (st.state === 1) {
-      if (st.count >= q.n) {
-        openDialog(q.done.map(L), () => { st.state = 2; giveReward(q.reward); SOUND.quest(); saveGame(true); done(); });
-      } else openDialog([L(q.progress[0] + `（${st.count} / ${q.n}）`)], done);
+      if (st.count >= q.n) openDialog(q.done.map(L), () => { st.state = 2; giveReward(q.reward); SOUND.quest(); saveGame(true); done(); });
+      else openDialog([L(q.progress[0] + `（${st.count} / ${q.n}）`)], done);
       return;
     }
   }
   const line = () => {
-    let pool = d.lines;
-    if (d.side && STATE.side[d.side.id] && STATE.side[d.side.id].state === 2 && npc.talkCount % 2 === 0) pool = d.side.after;
+    let pool = npcLines(d);
+    if (!siege && d.side && STATE.side[d.side.id] && STATE.side[d.side.id].state === 2 && npc.talkCount % 2 === 0) pool = d.side.after;
     const t = pool[npc.talkCount % pool.length];
     npc.talkCount++;
     return L(t);
   };
-  if (d.shop) {
+  if (!siege && d.shop) {
     openDialog([line()], null, [
       { label: '買い物をする', fn: () => { openShop(d); done(); } },
       { label: '話を聞く', fn: () => { done(); talkTo(npc); } },
@@ -320,14 +434,14 @@ function talkTo(npc) {
     ]);
     return;
   }
-  if (d.inn) {
+  if (!siege && d.inn) {
     openDialog([line()], null, [
       { label: `泊まる（${d.inn} G）`, fn: () => { restAtInn(npc); done(); } },
       { label: 'やめておく', fn: done }
     ]);
     return;
   }
-  if (d.ferry) {
+  if (!siege && d.ferry) {
     const to = d.ferry === 'island' ? '月影島' : '港町マリナ';
     openDialog([line()], null, [
       { label: `${to}へ渡る（30 G）`, fn: () => { takeFerry(d.ferry); done(); } },
@@ -336,6 +450,13 @@ function talkTo(npc) {
     return;
   }
   openDialog([line()], done);
+}
+// 物語の進み具合に合わせた台詞
+function npcLines(d) {
+  if (!STORY_FLAGS.liberated && d.siege && d.siege.lines) return d.siege.lines;
+  if (d.occ && !occupied(d.occ) && d.freed) return d.freed.concat(d.lines);
+  if (STORY_FLAGS.liberated && d.after) return d.after.concat(d.lines);
+  return d.lines;
 }
 
 function restAtInn(npc) {
@@ -383,20 +504,95 @@ function takeCrystal(c) {
   burst(c.x, c.y + 1.3, c.z, 80, 6, 1.2, 0.4, 0x9fe8ff, -1);
   saveGame(true);
 }
-function chapterEnd() {
+// 章の区切り
+function chapterCard(done, next) {
   const el = document.getElementById('chapter');
+  el.querySelector('.c1').textContent = done.split('「')[0];
+  el.querySelector('.c2').textContent = '「' + (done.split('「')[1] || '') + ' 完';
+  el.querySelector('.c3').textContent = next === 'end' ? '— そして、王国の再建が始まる —' : `— ${next} —`;
   el.classList.add('show');
   SOUND.levelup();
-  setTimeout(() => el.classList.remove('show'), 7000);
+  setTimeout(() => el.classList.remove('show'), 6500);
+}
+
+/* =========================================================
+   帝国軍の占領地（十将と部下たち）
+   ========================================================= */
+function spawnOccupation() {
+  const P = PLACE;
+  const G = (type, x, z, zone) => { const e = makeEnemy(type, x, z, { zone, noRespawn: true }); e.home = { x, z }; return e; };
+  // 序章
+  { const f = SPOTS.roomF; G('g10', f.x - 2, f.z, 'castle'); }
+  { const h = SPOTS.siegeHQ; G('g9', h.x, h.z - 12, 'siege'); }
+  // 風見の村
+  G('g8', P.kazami.x, P.kazami.z, 'kazami');
+  addGroup({ zone: 'kazami', x: P.kazami.x, z: P.kazami.z + 10, cols: 16, rows: 14, gap: 2.4, scatter: 3, roam: true, r: 60, kinds: { soldier: 0.7, heavy: 0.1, archer: 0.2 } });
+  campTents('kazami', P.kazami.x, P.kazami.z, 70, 10);
+  // 魔法学院
+  G('g7', P.academy.x, P.academy.z + 8, 'academy');
+  for (let k = 0; k < 8; k++) G('imp_mage', P.academy.x + Math.cos(k) * 22, P.academy.z + 10 + Math.sin(k) * 16, 'academy');
+  addGroup({ zone: 'academy', x: P.academy.x, z: P.academy.z + 50, cols: 14, rows: 12, gap: 2.2, scatter: 2, kinds: { soldier: 0.7, archer: 0.3 } });
+  campTents('academy', P.academy.x, P.academy.z + 60, 40, 6);
+  // 古代遺跡
+  G('g4', P.ruins.x, P.ruins.z - 26, 'ruins');
+  addGroup({ zone: 'ruins', x: P.ruins.x + 20, z: P.ruins.z + 30, cols: 12, rows: 12, gap: 2.3, scatter: 3, roam: true, r: 50, kinds: { soldier: 0.6, heavy: 0.2, archer: 0.2 } });
+  // 霧の峠の砦
+  G('g6', P.pass.x, P.pass.z - 4, 'pass');
+  addGroup({ zone: 'pass', x: P.pass.x, z: P.pass.z + 60, cols: 10, rows: 20, gap: 2.2, face: Math.PI, kinds: { soldier: 0.55, heavy: 0.25, archer: 0.2 } });
+  addGroup({ zone: 'pass', x: P.pass.x, z: P.pass.z - 50, cols: 12, rows: 12, gap: 2.2, kinds: { soldier: 0.6, heavy: 0.2, archer: 0.2 } });
+  fortWall('pass', P.pass.x, P.pass.z + 30, 60);
+  // 関所
+  G('g5', SPOTS.gate.x, SPOTS.gate.z - 10, 'gate');
+  addGroup({ zone: 'gate', x: SPOTS.gate.x, z: SPOTS.gate.z - 40, cols: 18, rows: 14, gap: 2.2, kinds: { soldier: 0.6, heavy: 0.2, archer: 0.2 } });
+  campTents('gate', SPOTS.gate.x, SPOTS.gate.z - 70, 60, 8);
+  // 竜の峰（古竜は第三将の騎竜）
+  G('g3', P.dragon.x + 8, P.dragon.z, 'dragon');
+  const dr = ENEMIES.find(e => e.type === 'dragon'); if (dr) { dr.hp = dr.maxHp = 600000; dr.T = Object.assign({}, dr.T, { atk: 4200, name: '古竜ヴァルグ（鎖に繋がれた騎竜）', lv: 88, exp: 20000 }); }
+  // 帝都
+  G('g2', SPOTS.empireGate.x, SPOTS.empireGate.z, 'empire');
+  G('g1', P.empire.x, P.empire.z - 30, 'palace');
+  { const t = SPOTS.emperorThrone; const z = G('zenon', t.x - 3, t.z + 4, 'palace'); z.dormant = () => STORY_FLAGS.palaceOpen; const em = G('emperor', t.x + 2, t.z, 'palace'); em.dormant = () => STORY_FLAGS.palaceOpen; }
+  addGroup({ zone: 'empire', x: P.empire.x, z: P.empire.z + 180, cols: 24, rows: 18, gap: 2.2, face: Math.PI, kinds: { soldier: 0.55, heavy: 0.25, archer: 0.2 } });
+  addGroup({ zone: 'empire', x: P.empire.x - 60, z: P.empire.z + 40, cols: 12, rows: 12, gap: 2.2, scatter: 3, roam: true, r: 50, kinds: { soldier: 0.7, archer: 0.3 } });
+  addGroup({ zone: 'empire', x: P.empire.x + 60, z: P.empire.z + 40, cols: 12, rows: 12, gap: 2.2, scatter: 3, roam: true, r: 50, kinds: { soldier: 0.7, heavy: 0.3 } });
+  for (let k = 0; k < 10; k++) G('imp_knight', P.empire.x + (k - 4.5) * 8, P.empire.z - 10, 'palace');
+  // 宮殿の結界（第一将が倒れるまで壊せない）
+  const pal = makeStructure({ x: P.empire.x, z: P.empire.z - 70, r: 30, hp: 1e12, name: '宮殿の結界', protect: true, palace: true }, () => {});
+  void pal;
+}
+function campTents(zone, cx, cz, R, n) {
+  const Rr = mulberry32(hashStr(zone));
+  for (let k = 0; k < n; k++) {
+    const a = k / n * Math.PI * 2 + Rr(), r = R * (0.6 + Rr() * 0.4);
+    const x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r;
+    makeStructure({ x, z, r: 4, hp: 2500, name: '帝国軍の天幕', zone }, (B) => { tent(B, x, z, Rr() * 6, [0x6a2a1a, 0x4a3a2a, 0x5a1a1a][k % 3], 3.2); });
+  }
+  const bx = cx + R * 0.3, bz = cz;
+  makeStructure({ x: bx, z: bz, r: 2, hp: 1500, name: '帝国の軍旗', zone }, (B) => flagPole(B, bx, bz, 0x8a1a1a, 9));
+}
+function fortWall(zone, cx, cz, half) {
+  for (let k = -half; k < half; k += 12) {
+    const x1 = cx + k, x2 = cx + k + 12;
+    if (Math.abs(k + 6) < 8) continue;          // 門
+    makeStructure({ x: (x1 + x2) / 2, z: cz, r: 7, hp: 20000, name: '砦の柵', zone }, (B) => {
+      for (let x = x1; x < x2; x += 0.9) { const gy = groundAt(x, cz); B.cyl(x, gy + 2.6, cz, 0.38, 0.42, 5.2, 0x5a4028, 6); B.cone(x, gy + 5.5, cz, 0.38, 0.6, 0x5a4028, 6); }
+      addWallCollider(x1, cz, x2, cz, 0.9);
+    });
+  }
+  for (const s of [-1, 1]) {
+    const x = cx + s * 10;
+    makeStructure({ x, z: cz, r: 4, hp: 25000, name: '砦の櫓', zone }, (B) => tower(B, x, cz, 3, 11, 0x5a4a3a, 0x3a1a1a));
+  }
 }
 
 /* =========================================================
    記録（ブラウザに保存）
    ========================================================= */
-const SAVE_KEY = 'mahounosekai_save_v1';
+const SAVE_KEY = 'mahounosekai_save_v2';
 function saveGame(quiet) {
+  if (!GAME.started || CUT.active) return false;
   try {
-    const data = Object.assign({}, STATE, { pos: { x: player.pos.x, y: player.pos.y, z: player.pos.z }, dungeon: GAME.inDungeon, v: 1,
+    const data = Object.assign({}, STATE, { pos: { x: player.pos.x, y: player.pos.y, z: player.pos.z }, dungeon: GAME.inDungeon, v: 2,
       talk: Object.fromEntries(NPC_LIST.map(n => [n.id, n.talkCount])) });
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
     if (!quiet) toast('記録しました');
@@ -409,14 +605,28 @@ function loadSave() {
     return s ? JSON.parse(s) : null;
   } catch (e) { return null; }
 }
+// 記録から、倒した敵・救った人・解放した場所を元に戻す
+function applyStoryState() {
+  const clearZone = (zone) => { for (const g of ARMY.groups) if (g.zone === zone) for (const u of g.units) u.alive = false; for (const e of ENEMIES) if (e.zone === zone && !e.T.boss) { e.alive = false; e.deathT = 9; } };
+  if (STATE.main > 0) clearZone('castle');
+  if (STATE.main > 3) clearZone('courtyard');
+  if (STATE.main > 6) { clearZone('city'); clearZone('siege'); for (const s of STRUCTS) if (s.zone === 'siege' && s.alive) { s.alive = false; s.mesh.visible = false; removeColliders(s.cols); } }
+  for (const g of STATE.generals) {
+    for (const e of ENEMIES) if (e.type === g) { e.alive = false; e.deathT = 9; }
+    if (g === 'g8') clearZone('kazami');
+    if (g === 'g7') clearZone('academy');
+  }
+  for (const s of CAP.scenes) if ((STATE.rescued || []).includes(s.c.id)) { s.rescued = true; s.m.root.visible = false; for (const e of s.captors) { e.alive = false; e.deathT = 9; } }
+  if (STATE.generals.includes('g1')) STATORY_palace();
+  setCapitalLiberated(STATE.main > 7);
+  refreshNPCs();
+}
 function applySave(data) {
   for (const k of Object.keys(STATE)) if (data[k] !== undefined) STATE[k] = data[k];
   for (const c of CRYSTALS) if (STATE.crystals.includes(c.id)) { c.taken = true; scene.remove(c.mesh, c.glow); }
   if (data.talk) for (const n of NPC_LIST) n.talkCount = data.talk[n.id] || 0;
   computeStats();
-  // 倒したボスは復活しない
-  if (STATE.main > 8) for (const e of ENEMIES) if (e.type === 'guardian') { e.alive = false; e.deathT = 9; }
-  if (STATE.main > 12) for (const e of ENEMIES) if (e.type === 'dragon') { e.alive = false; e.deathT = 9; }
+  applyStoryState();
   if (data.pos) {
     if (data.dungeon) enterDungeon(true);
     teleport(data.pos.x, data.pos.z);
