@@ -84,16 +84,31 @@
 
   #quest {
     position: fixed; top: calc(150px + env(safe-area-inset-top, 0px)); left: calc(10px + env(safe-area-inset-left, 0px));
-    width: 220px; background: var(--dark); color: #fff4dc; padding: 8px 12px; border-radius: 10px; font-size: 12px; line-height: 1.55;
-    border-left: 4px solid var(--gold);
+    width: 220px; background: var(--dark); color: #fff4dc; padding: 6px 12px 8px; border-radius: 10px; font-size: 12px; line-height: 1.55;
+    border-left: 4px solid var(--gold); box-sizing: border-box;
   }
-  #qtitle { font-weight: 700; color: var(--gold); }
+  #questToggle { display: flex; align-items: center; gap: 6px; width: 100%; padding: 2px 0; border: none; background: none; color: var(--gold);
+    font-weight: 700; font-size: 12px; cursor: pointer; text-align: left; }
+  #questToggle .arrow { margin-left: auto; font-size: 10px; opacity: 0.8; transition: transform 0.2s; }
+  #questToggle .dot { width: 7px; height: 7px; border-radius: 50%; background: #ff5a3a; display: none; box-shadow: 0 0 6px #ff5a3a; }
+  #quest.collapsed { width: auto; padding: 4px 10px; }
+  #quest.collapsed #questBody { display: none; }
+  #quest.collapsed #questToggle .arrow { transform: rotate(180deg); }
+  #quest.collapsed.fresh #questToggle .dot { display: inline-block; animation: blink 1s infinite; }
+  #qtitle { font-weight: 700; color: #ffe6a0; }
   #qdist { opacity: 0.7; font-size: 11px; }
+  /* スマホでは左下に置く（下はジョイスティックの操作をそのまま通す） */
+  @media (pointer: coarse) {
+    #quest { top: auto; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); left: calc(10px + env(safe-area-inset-left, 0px)); right: auto;
+      width: 200px; background: rgba(22, 20, 30, 0.62); }
+    #quest.collapsed { width: auto; }
+  }
 
   /* 右上：地図 */
   #mapwrap { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); right: calc(10px + env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; align-items: center; gap: 6px; }
   #minimap { width: 150px; height: 150px; border-radius: 50%; border: 3px solid rgba(250,246,236,0.9); box-shadow: 0 2px 12px rgba(0,0,0,0.3); background: #3f86a8; }
   .topbtns { display: flex; gap: 6px; }
+  #musicBtn.off { opacity: 0.55; }
   .topbtns button { padding: 6px 12px; border-radius: 8px; border: none; background: var(--paper); font-weight: 700; font-size: 12px; cursor: pointer; color: var(--ink); }
 
   /* 狙っている敵 */
@@ -233,6 +248,7 @@
   #panel .warps h3 { margin-top: 0; }
   .warp { text-align: left; background: #2a4a6a; }
 
+  #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: #eef4ff; z-index: 3; mix-blend-mode: screen; }
   #fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 0.45s; z-index: 45; }
   #fade.on { opacity: 1; }
   #hurt { position: fixed; inset: 0; pointer-events: none; box-shadow: inset 0 0 120px rgba(220,30,20,0.8); opacity: 0; }
@@ -255,7 +271,8 @@
   @media (max-width: 700px), (max-height: 500px) {
     #hud { width: 170px; padding: 6px 9px; font-size: 11px; }
     #place { font-size: 13px; }
-    #quest { width: 170px; top: calc(128px + env(safe-area-inset-top, 0px)); font-size: 11px; padding: 6px 9px; }
+    #quest { width: 170px; top: calc(128px + env(safe-area-inset-top, 0px)); font-size: 11px; padding: 5px 9px 6px; }
+    #questToggle { font-size: 11px; }
     #minimap { width: 104px; height: 104px; }
     .topbtns button { padding: 5px 9px; font-size: 11px; }
     #target { top: auto; bottom: calc(210px + env(safe-area-inset-bottom, 0px)); width: 60vw; font-size: 11px; }
@@ -272,6 +289,11 @@
     #toasts { bottom: auto; top: 60px; }
     #focusBtn { bottom: 150px; }
     #talkBtn { right: calc(76px + env(safe-area-inset-right, 0px)); bottom: 150px; }
+  }
+  @media (pointer: coarse) {
+    #quest, #quest.collapsed { top: auto; right: auto; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); left: calc(10px + env(safe-area-inset-left, 0px)); }
+    #quest { width: 190px; }
+    #quest.collapsed { width: auto; }
   }
 </style>
 </head>
@@ -302,14 +324,15 @@
     <div class="bar"><i id="mpbar"></i><b>魔力</b><span id="mptxt"></span></div>
     <div class="xp"><div id="expbar"></div></div>
   </div>
-  <div id="quest"><div id="qtitle"></div><div id="qobj"></div><div id="qdist"></div></div>
+  <div id="quest"><button id="questToggle" class="pe" type="button" aria-expanded="true"><span class="dot"></span>📜 目的<span class="arrow">▼</span></button>
+    <div id="questBody"><div id="qtitle"></div><div id="qobj"></div><div id="qdist"></div></div></div>
   <div id="mapwrap">
     <canvas id="minimap" width="150" height="150"></canvas>
-    <div class="topbtns"><button id="mapBtn" class="pe" type="button">地図</button><button id="menuBtn" class="pe" type="button">メニュー</button></div>
+    <div class="topbtns"><button id="mapBtn" class="pe" type="button">地図</button><button id="menuBtn" class="pe" type="button">メニュー</button><button id="musicBtn" class="pe" type="button" aria-label="音楽の切替">♪</button></div>
   </div>
   <div id="target"><div class="n"></div><div class="bar"><i></i></div><div class="w"></div></div>
   <div id="help"><kbd>WASD</kbd>移動 <kbd>Shift</kbd>走る <kbd>Space</kbd>跳ぶ　<b>左クリック長押し</b>で魔力を込めて放つ　右ドラッグ視点<br>
-    <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd>炎・氷・雷　<kbd>Q</kbd>オートフォーカス <kbd>Tab</kbd>狙い変更　<kbd>E</kbd>話す <kbd>M</kbd>地図 <kbd>I</kbd>メニュー</div>
+    <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd>炎・氷・雷　<kbd>Q</kbd>オートフォーカス <kbd>Tab</kbd>狙い変更　<kbd>E</kbd>話す <kbd>M</kbd>地図 <kbd>I</kbd>メニュー <kbd>J</kbd>目的</div>
   <div id="hint"></div>
   <div id="charge"><b>0</b><div class="bar"><i></i></div>魔力を込めている…</div>
   <div id="actions">
@@ -335,6 +358,7 @@
 <div id="hurt"></div>
 <div id="dead">力尽きた…</div>
 <div id="chapter"><div class="c1">第一章</div><div class="c2">「灯火の魔法使い」完</div><div class="c3">— 第二章につづく —</div></div>
+<div id="flash"></div>
 <div id="fade"></div>
 <div id="joy"><div id="joyKnob"></div></div>
 

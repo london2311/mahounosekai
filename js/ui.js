@@ -119,9 +119,15 @@ function panelHTML(title, body, foot = '') {
   $('panel').innerHTML = `<div class="ph"><h2>${title}</h2><button class="x" data-act="close" aria-label="閉じる">✕</button></div>
     <div class="pb">${body}</div>${foot ? `<div class="pf">${foot}</div>` : ''}`;
 }
+function volName(v) { return v < 0.4 ? '小' : v < 0.7 ? '中' : '大'; }
+function setMusicBtn() {
+  const b = $('musicBtn');
+  if (b) { b.textContent = SOUND.settings.bgm ? '♪' : '♪̸'; b.classList.toggle('off', !SOUND.settings.bgm); }
+}
 $('panel').addEventListener('click', (e) => {
   const b = e.target.closest('[data-act]');
   if (!b) return;
+  SOUND.click();
   const act = b.dataset.act, arg = b.dataset.arg;
   if (act === 'close') closePanel();
   else if (act === 'buy') { buy(arg); UI.render(); }
@@ -130,7 +136,16 @@ $('panel').addEventListener('click', (e) => {
   else if (act === 'tab') { UI.tab = arg; UI.render(); }
   else if (act === 'warp') { closePanel(); warpTo(arg); }
   else if (act === 'save') { saveGame(); }
-  else if (act === 'sound') { SOUND.toggle(); UI.render(); }
+  else if (act === 'bgm') { SOUND.setBgm(!SOUND.settings.bgm); setMusicBtn(); UI.render(); }
+  else if (act === 'sfx') { SOUND.setSfx(!SOUND.settings.sfx); UI.render(); }
+  else if (act === 'bgmvol' || act === 'sfxvol') {
+    const key = act === 'bgmvol' ? 'bgmVol' : 'sfxVol';
+    const steps = [0.25, 0.55, 0.85];
+    const cur = SOUND.settings[key];
+    const nxt = steps[(steps.findIndex(v => Math.abs(v - cur) < 0.05) + 1) % steps.length];
+    act === 'bgmvol' ? SOUND.setBgmVol(nxt) : SOUND.setSfxVol(nxt);
+    UI.render();
+  }
   else if (act === 'reset') {
     if (confirm('記録を消して最初からやり直しますか？')) { try { localStorage.removeItem(SAVE_KEY); } catch (err) { /* 無視 */ } location.reload(); }
   }
@@ -190,10 +205,13 @@ function openMenu(tab) {
       }).join('');
     } else {
       body += `<div class="row"><div class="nm">記録する<small>今の状態をこのブラウザに保存します（宿屋に泊まっても記録されます）</small></div><button data-act="save">記録</button></div>
-        <div class="row"><div class="nm">効果音<small>${SOUND.on ? 'オン' : 'オフ'}</small></div><button data-act="sound">切替</button></div>
+        <div class="row"><div class="nm">音楽<small>${SOUND.settings.bgm ? 'オン' : 'オフ'}（場所や戦闘に合わせて曲が変わります）</small></div><button data-act="bgm">切替</button></div>
+        <div class="row"><div class="nm">音楽の音量<small>${volName(SOUND.settings.bgmVol)}</small></div><button data-act="bgmvol">変更</button></div>
+        <div class="row"><div class="nm">効果音<small>${SOUND.settings.sfx ? 'オン' : 'オフ'}</small></div><button data-act="sfx">切替</button></div>
+        <div class="row"><div class="nm">効果音の音量<small>${volName(SOUND.settings.sfxVol)}</small></div><button data-act="sfxvol">変更</button></div>
         <div class="row"><div class="nm">最初からやり直す<small>記録を消去します</small></div><button data-act="reset">消去</button></div>
         <p class="help">${IS_TOUCH ? '左側をなぞって移動、右側をなぞって視点。詠唱ボタンを長押しで魔力を込め、離して放つ。' :
-        'WASD 移動 / Shift 走る / Space ジャンプ / 左クリック長押し・F 詠唱 / 右ドラッグ 視点 / 1・2・3 属性 / Q オートフォーカス / Tab 狙いの切替 / E 話す・調べる / M 地図 / I 持ち物'}</p>`;
+        'WASD 移動 / Shift 走る / Space ジャンプ / 左クリック長押し・F 詠唱 / 右ドラッグ 視点 / 1・2・3 属性 / Q オートフォーカス / Tab 狙いの切替 / E 話す・調べる / M 地図 / I 持ち物 / J 目的の表示・非表示'}</p>`;
     }
     panelHTML('メニュー', body, `所持金 <b>${fmt(STATE.gold)} G</b>　プレイ時間 ${Math.floor(STATE.playTime / 60)}分`);
   });
@@ -404,6 +422,10 @@ function updateHUD(dt) {
     lastArea = area;
   }
   const s = mainStep();
+  if (UI.questTitle !== s.title) {
+    if (UI.questTitle !== undefined && $('quest').classList.contains('collapsed')) $('quest').classList.add('fresh');
+    UI.questTitle = s.title;
+  }
   $('qtitle').textContent = s.title;
   let obj = s.obj;
   if (s.kill && s.n) obj += `（${STATE.mainKills} / ${s.n}）`;
@@ -439,3 +461,24 @@ function setInteractHint(obj) {
   btn.textContent = obj.npc ? '話す' : '調べる';
   btn.classList.add('show');
 }
+
+/* ---------- 目的の案内（開く・閉じる） ---------- */
+function setQuestCollapsed(c) {
+  const q = $('quest');
+  q.classList.toggle('collapsed', c);
+  if (!c) q.classList.remove('fresh');
+  $('questToggle').setAttribute('aria-expanded', String(!c));
+  try { localStorage.setItem('mahounosekai_quest_collapsed', c ? '1' : '0'); } catch (e) { /* 保存できなくても動く */ }
+}
+(() => {
+  let c = false;
+  try { c = localStorage.getItem('mahounosekai_quest_collapsed') === '1'; } catch (e) { /* 無視 */ }
+  setQuestCollapsed(c);
+  const btn = $('questToggle');
+  btn.addEventListener('pointerdown', (e) => e.stopPropagation());
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setQuestCollapsed(!$('quest').classList.contains('collapsed'));
+    SOUND.click && SOUND.click();
+  });
+})();
