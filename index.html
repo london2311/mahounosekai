@@ -2,16 +2,22 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Open World — はじまりの丘</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>マホウノセカイ</title>
+<meta name="description" content="炎・氷・雷の小さな魔法と、底なしのオーラで旅する、ブラウザで遊べるオープンワールドRPG。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap" rel="stylesheet">
 <style>
   :root {
     --ink: #1f2a33;
-    --paper: rgba(250, 246, 236, 0.86);
+    --paper: rgba(250, 246, 236, 0.88);
+    --paper-solid: #faf6ec;
     --accent: #c8552f;
+    --dark: rgba(22, 20, 30, 0.82);
+    --gold: #e8c04a;
+    --hp: #d8453a;
+    --mp: #3a8ae0;
   }
   html, body {
     margin: 0; height: 100%; overflow: hidden;
@@ -20,722 +26,317 @@
     color: var(--ink);
     touch-action: none;
     -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
   }
   canvas { display: block; }
-
-  #hud {
-    position: fixed;
-    top: calc(12px + env(safe-area-inset-top, 0px));
-    left: calc(12px + env(safe-area-inset-left, 0px));
-    background: var(--paper);
-    padding: 10px 14px 9px;
-    border-radius: 10px;
-    border-left: 4px solid var(--accent);
-    font-size: 13px; line-height: 1.6;
-    pointer-events: none;
-  }
-  #hud .place { font-size: 17px; font-weight: 700; letter-spacing: 0.06em; }
-  #hud .coords { font-variant-numeric: tabular-nums; opacity: 0.8; }
-
-  #help {
-    position: fixed;
-    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-    left: calc(12px + env(safe-area-inset-left, 0px));
-    background: var(--paper);
-    padding: 8px 12px; border-radius: 8px;
-    font-size: 12px; line-height: 1.9;
-    pointer-events: none;
-  }
+  button { font-family: inherit; }
   kbd {
     display: inline-block; min-width: 1.4em; text-align: center;
     padding: 0 5px; margin-right: 3px;
     border: 1px solid rgba(31,42,51,0.35); border-bottom-width: 2px;
     border-radius: 4px; font-family: inherit; font-size: 11px;
-    background: rgba(255,255,255,0.6);
+    background: rgba(255,255,255,0.7);
   }
 
-  /* タッチ操作 */
-  #joy {
-    position: fixed; width: 110px; height: 110px; margin: -55px 0 0 -55px;
-    border-radius: 50%;
-    background: rgba(250,246,236,0.25);
-    border: 2px solid rgba(250,246,236,0.7);
-    display: none; pointer-events: none;
+  /* 読み込み・タイトル */
+  #loading, #title {
+    position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 50; text-align: center; padding: 16px;
   }
-  #joyKnob {
-    position: absolute; left: 50%; top: 50%;
-    width: 46px; height: 46px; margin: -23px 0 0 -23px;
-    border-radius: 50%; background: rgba(250,246,236,0.9);
+  #loading { background: radial-gradient(ellipse at 50% 40%, #2a3050, #0e0f1a); color: #f4ead2; transition: opacity 0.8s; }
+  #loading.done { opacity: 0; pointer-events: none; }
+  .logo { font-weight: 900; letter-spacing: 0.08em; font-size: clamp(34px, 9vw, 72px); line-height: 1.1;
+    background: linear-gradient(180deg, #fff6d8, #f2b75a 60%, #c8552f); -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 4px 18px rgba(255,160,60,0.35)); }
+  .sublogo { margin: 8px 0 26px; font-size: clamp(12px, 3.4vw, 16px); letter-spacing: 0.3em; opacity: 0.85; }
+  .loadwrap { width: min(360px, 80vw); height: 8px; border-radius: 4px; background: rgba(255,255,255,0.15); overflow: hidden; }
+  #loadbar { height: 100%; width: 0; background: linear-gradient(90deg, #ffd27a, #ff8a3a); transition: width 0.2s; }
+  #loadmsg { margin-top: 12px; font-size: 13px; opacity: 0.8; }
+  #title { background: linear-gradient(180deg, rgba(10,12,28,0.25), rgba(10,12,28,0.7)); color: #fff8e6; opacity: 0; pointer-events: none; transition: opacity 0.8s; }
+  #title.show { opacity: 1; pointer-events: auto; }
+  #title .btns { display: flex; flex-direction: column; gap: 12px; width: min(280px, 80vw); }
+  #title button { padding: 14px; font-size: 17px; font-weight: 700; border-radius: 12px; border: 2px solid rgba(255,230,180,0.8);
+    background: rgba(200,85,47,0.9); color: #fff; cursor: pointer; letter-spacing: 0.1em; }
+  #title button.sub { background: rgba(30,30,50,0.7); }
+  #title button:disabled { opacity: 0.4; cursor: default; }
+  #title .story { max-width: 520px; font-size: 13px; line-height: 1.9; margin: 0 0 26px; opacity: 0.92; text-shadow: 0 1px 4px #000; }
+
+  #ui { opacity: 0; pointer-events: none; transition: opacity 0.6s; }
+  #ui.show { opacity: 1; }
+  #ui.show .pe { pointer-events: auto; }
+
+  /* 左上：ステータス */
+  #hud {
+    position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); left: calc(10px + env(safe-area-inset-left, 0px));
+    background: var(--paper); padding: 8px 12px 9px; border-radius: 10px; border-left: 4px solid var(--accent);
+    font-size: 12px; line-height: 1.5; width: 220px; box-shadow: 0 2px 10px rgba(0,0,0,0.15);
   }
-  #jumpBtn {
-    position: fixed;
-    right: calc(22px + env(safe-area-inset-right, 0px));
-    bottom: calc(28px + env(safe-area-inset-bottom, 0px));
-    width: 76px; height: 76px; border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0.8);
-    background: rgba(200,85,47,0.85); color: #fff;
-    font: 700 16px/1 inherit; font-family: inherit;
-    display: none;
+  #place { font-size: 16px; font-weight: 700; letter-spacing: 0.05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row2 { display: flex; justify-content: space-between; font-weight: 700; }
+  .bar { position: relative; height: 12px; border-radius: 6px; background: rgba(31,42,51,0.18); overflow: hidden; margin: 3px 0; }
+  .bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; transition: width 0.15s; }
+  .bar span { position: absolute; right: 6px; top: -2px; font-size: 10px; font-weight: 700; color: #fff; text-shadow: 0 0 3px rgba(0,0,0,0.8); font-variant-numeric: tabular-nums; }
+  .bar b { position: absolute; left: 6px; top: -2px; font-size: 10px; color: #fff; text-shadow: 0 0 3px rgba(0,0,0,0.8); }
+  #hpbar { background: linear-gradient(90deg, #b8322a, #ee6a4a); }
+  #mpbar { background: linear-gradient(90deg, #2a5ab8, #6ac0ff); }
+  .xp { height: 3px; background: rgba(31,42,51,0.15); border-radius: 2px; overflow: hidden; }
+  #expbar { height: 100%; background: var(--gold); width: 0; }
+
+  #quest {
+    position: fixed; top: calc(150px + env(safe-area-inset-top, 0px)); left: calc(10px + env(safe-area-inset-left, 0px));
+    width: 220px; background: var(--dark); color: #fff4dc; padding: 8px 12px; border-radius: 10px; font-size: 12px; line-height: 1.55;
+    border-left: 4px solid var(--gold);
   }
+  #qtitle { font-weight: 700; color: var(--gold); }
+  #qdist { opacity: 0.7; font-size: 11px; }
+
+  /* 右上：地図 */
+  #mapwrap { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); right: calc(10px + env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  #minimap { width: 150px; height: 150px; border-radius: 50%; border: 3px solid rgba(250,246,236,0.9); box-shadow: 0 2px 12px rgba(0,0,0,0.3); background: #3f86a8; }
+  .topbtns { display: flex; gap: 6px; }
+  .topbtns button { padding: 6px 12px; border-radius: 8px; border: none; background: var(--paper); font-weight: 700; font-size: 12px; cursor: pointer; color: var(--ink); }
+
+  /* 狙っている敵 */
+  #target { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); width: min(340px, 42vw);
+    background: var(--dark); color: #fff; padding: 6px 10px 8px; border-radius: 8px; font-size: 12px; display: none; text-align: center; }
+  #target.show { display: block; }
+  #target .n { font-weight: 700; }
+  #target .w { font-size: 11px; color: #ffd27a; }
+  #target .bar { height: 8px; background: rgba(255,255,255,0.2); }
+  #target .bar i { background: linear-gradient(90deg, #b8322a, #ff7a4a); }
+  #target.boss { width: min(520px, 60vw); border: 2px solid #c8321e; }
+  #target.boss .bar { height: 12px; }
+
+  /* 下：行動ボタン */
+  #actions { position: fixed; right: calc(14px + env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    display: grid; grid-template-columns: auto auto; grid-template-rows: auto auto; gap: 10px; align-items: end; justify-items: end; }
+  .elrow { display: flex; gap: 8px; grid-column: 1 / 3; justify-self: end; }
+  .elbtn { width: 50px; height: 50px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.7); color: #fff; font-weight: 900; font-size: 17px;
+    background: rgba(20,20,30,0.55); cursor: pointer; transition: transform 0.1s; position: relative; }
+  .elbtn[data-el="fire"] { --c: #ff7a2a; } .elbtn[data-el="ice"] { --c: #5ac0ff; } .elbtn[data-el="thunder"] { --c: #f2c82a; }
+  .elbtn.on { background: var(--c); box-shadow: 0 0 16px var(--c); transform: scale(1.1); }
+  .elbtn small { position: absolute; bottom: -2px; right: 2px; font-size: 9px; opacity: 0.8; }
+  #castBtn { --c: #ff7a2a; width: 92px; height: 92px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.9);
+    background: radial-gradient(circle at 50% 40%, rgba(255,255,255,0.35), var(--c) 70%); color: #fff; font-weight: 900; font-size: 15px;
+    box-shadow: 0 0 22px var(--c); display: none; text-shadow: 0 1px 3px rgba(0,0,0,0.6); }
+  #castBtn span { display: block; font-size: 24px; }
+  #jumpBtn { width: 60px; height: 60px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.8); background: rgba(40,40,60,0.6); color: #fff; font-weight: 700; display: none; }
+  #focusBtn { position: fixed; right: calc(14px + env(safe-area-inset-right, 0px)); bottom: calc(190px + env(safe-area-inset-bottom, 0px));
+    width: 54px; height: 54px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.7); background: rgba(20,20,30,0.55); color: #fff; font-weight: 700; font-size: 11px; line-height: 1.1; cursor: pointer; }
+  #focusBtn.on { background: rgba(232,60,60,0.8); box-shadow: 0 0 12px rgba(255,80,80,0.8); }
+  #talkBtn { position: fixed; right: calc(14px + env(safe-area-inset-right, 0px)); bottom: calc(256px + env(safe-area-inset-bottom, 0px));
+    padding: 12px 18px; border-radius: 26px; border: 2px solid #fff; background: rgba(232,192,74,0.95); color: #3a2a0a; font-weight: 900; font-size: 15px; display: none; }
+  #talkBtn.show { display: block; }
+  @media (pointer: fine) { #talkBtn.show { display: none; } #actions { bottom: 16px; } #focusBtn { bottom: 84px; } }
   @media (pointer: coarse) {
+    #castBtn, #jumpBtn { display: block; }
     #help { display: none; }
-    #jumpBtn { display: block; }
+  }
+
+  #help { position: fixed; bottom: 12px; left: 12px; background: var(--paper); padding: 6px 10px; border-radius: 8px; font-size: 11px; line-height: 1.9; }
+  #hint { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); background: var(--dark); color: #fff; padding: 8px 14px; border-radius: 20px; font-size: 14px; font-weight: 700; display: none; }
+  #hint.show { display: block; }
+  #hint kbd { background: #fff; }
+
+  /* 詠唱ゲージ */
+  #charge { position: fixed; left: 50%; bottom: 24%; transform: translateX(-50%); text-align: center; color: #fff; text-shadow: 0 1px 4px #000; font-weight: 700; display: none; }
+  #charge.show { display: block; }
+  #charge b { font-size: 26px; display: block; }
+  #charge .bar { width: 180px; height: 6px; background: rgba(0,0,0,0.4); }
+  #charge .bar i { background: linear-gradient(90deg, #6ac0ff, #fff); }
+
+  /* 照準 */
+  #reticle { position: fixed; left: 0; top: 0; pointer-events: none; display: none; border: 2px solid rgba(255,90,70,0.95); border-radius: 50%;
+    box-shadow: 0 0 10px rgba(255,80,60,0.8), inset 0 0 8px rgba(255,80,60,0.6); animation: spin 3s linear infinite; }
+  #reticle::before, #reticle::after { content: ""; position: absolute; left: 50%; top: -8px; width: 2px; height: calc(100% + 16px); background: linear-gradient(rgba(255,90,70,1) 18%, transparent 18%, transparent 82%, rgba(255,90,70,1) 82%); transform: translateX(-50%); }
+  #reticle::after { transform: translateX(-50%) rotate(90deg); }
+  @keyframes spin { from { rotate: 0deg; } to { rotate: 360deg; } }
+
+  #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  .num { position: absolute; left: 0; top: 0; font-weight: 900; font-size: 20px; text-shadow: 0 0 3px #000, 0 2px 3px #000; white-space: nowrap; }
+  .num.weak { font-size: 26px; }
+  .num.resist { font-size: 15px; opacity: 0.8; }
+  .num.small { font-size: 14px; }
+  .num.hurt { font-size: 22px; }
+  .ebar { position: absolute; left: 0; top: 0; width: 56px; height: 6px; background: rgba(0,0,0,0.55); border-radius: 3px; overflow: hidden; border: 1px solid rgba(255,255,255,0.5); }
+  .ebar i { display: block; height: 100%; background: linear-gradient(90deg, #d8322a, #ff7a4a); }
+
+  /* お知らせ */
+  #toasts { position: fixed; left: 50%; top: calc(70px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; width: min(420px, 90vw); }
+  .toast { background: var(--dark); color: #fff; padding: 5px 14px; border-radius: 14px; font-size: 13px; transition: opacity 0.5s, transform 0.5s; text-align: center; }
+  .toast.kill { color: #ffe0a0; } .toast.item { color: #a0ffb8; } .toast.quest { color: #ffd84a; }
+  .toast.out { opacity: 0; transform: translateY(-8px); }
+  #banner { position: fixed; left: 50%; top: 32%; transform: translate(-50%, -50%); text-align: center; color: #fff; pointer-events: none; opacity: 0; width: 92vw; }
+  #banner .t { font-size: clamp(22px, 5vw, 36px); font-weight: 900; letter-spacing: 0.08em; text-shadow: 0 2px 12px rgba(0,0,0,0.8), 0 0 30px rgba(255,180,80,0.5); }
+  #banner .s { font-size: clamp(12px, 3.2vw, 16px); margin-top: 6px; text-shadow: 0 1px 6px #000; }
+  #banner.show { animation: bannerIn 3.8s ease forwards; }
+  @keyframes bannerIn { 0% { opacity: 0; transform: translate(-50%, -40%); } 10% { opacity: 1; transform: translate(-50%, -50%); } 80% { opacity: 1; } 100% { opacity: 0; } }
+  #areaname { position: fixed; left: 50%; top: 20%; transform: translateX(-50%); color: #fff; font-size: clamp(18px, 4vw, 26px); font-weight: 700; letter-spacing: 0.3em;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.9); opacity: 0; pointer-events: none; white-space: nowrap; }
+  #areaname.show { animation: areaIn 3s ease forwards; }
+  @keyframes areaIn { 0% { opacity: 0; letter-spacing: 0.6em; } 20% { opacity: 1; letter-spacing: 0.3em; } 75% { opacity: 1; } 100% { opacity: 0; } }
+
+  /* 会話 */
+  #dialog { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(720px, calc(100vw - 24px));
+    box-sizing: border-box; background: rgba(250,246,236,0.96); border: 3px solid #5a3a22; border-radius: 14px; padding: 12px 16px 14px; display: none; z-index: 30;
+    box-shadow: 0 6px 30px rgba(0,0,0,0.4); cursor: pointer; }
+  #dialog.show { display: block; }
+  #dialog .head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+  #dialog .who { font-weight: 900; font-size: 17px; color: #7a2a14; }
+  #dialog .role { font-size: 12px; color: #6a5a4a; }
+  #dialog.sys .who { color: #2a5a8a; }
+  #dialog .text { font-size: 16px; line-height: 1.75; min-height: 3.5em; white-space: pre-wrap; }
+  #dialog .next { position: absolute; right: 14px; bottom: 8px; animation: blink 1s infinite; color: #7a2a14; }
+  @keyframes blink { 50% { opacity: 0.2; } }
+  #dialog .choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  #dialog .choices button { padding: 10px 16px; border-radius: 10px; border: 2px solid #5a3a22; background: #fff; font-weight: 700; font-size: 14px; cursor: pointer; }
+  #dialog .choices button.primary { background: #c8552f; color: #fff; border-color: #7a2a14; }
+
+  /* パネル */
+  #panel { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(760px, calc(100vw - 20px)); max-height: calc(100vh - 30px);
+    box-sizing: border-box; display: none; flex-direction: column; background: var(--paper-solid); border: 3px solid #5a3a22; border-radius: 14px; z-index: 40;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.45); }
+  #panel.show { display: flex; }
+  #panel .ph { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid rgba(90,58,34,0.3); }
+  #panel h2 { margin: 0; font-size: 18px; }
+  #panel h3 { margin: 14px 0 6px; font-size: 14px; color: #7a2a14; }
+  #panel .x { border: none; background: #5a3a22; color: #fff; width: 34px; height: 34px; border-radius: 50%; font-size: 16px; cursor: pointer; }
+  #panel .pb { overflow-y: auto; padding: 10px 14px; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+  #panel .pf { padding: 8px 14px; border-top: 1px solid rgba(90,58,34,0.3); font-size: 13px; text-align: right; }
+  #panel .row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px dashed rgba(90,58,34,0.25); }
+  #panel .row .nm { flex: 1; font-weight: 700; font-size: 14px; }
+  #panel .row small { display: block; font-weight: 500; font-size: 12px; color: #6a5a4a; margin-top: 2px; line-height: 1.5; }
+  #panel .row .pr { font-weight: 700; white-space: nowrap; }
+  #panel .row button, .warp { padding: 8px 14px; border-radius: 8px; border: none; background: #c8552f; color: #fff; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  #panel .row button:disabled { background: #b8b0a0; cursor: default; }
+  #panel .row.done { opacity: 0.6; }
+  #panel .tag { display: inline-block; margin-left: 8px; font-size: 11px; padding: 1px 8px; border-radius: 10px; background: #5a3a22; color: #fff; font-weight: 500; vertical-align: middle; }
+  #panel .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  #panel .tabs button { padding: 6px 12px; border-radius: 16px; border: 2px solid #5a3a22; background: #fff; font-weight: 700; cursor: pointer; }
+  #panel .tabs button.on { background: #5a3a22; color: #fff; }
+  #panel .empty, #panel .help { color: #6a5a4a; font-size: 13px; line-height: 1.8; }
+  #panel .stat { font-size: 13px; line-height: 1.8; background: rgba(90,58,34,0.08); padding: 6px 10px; border-radius: 8px; }
+  #panel[data-kind="map"] .pb { display: flex; gap: 12px; flex-wrap: wrap; }
+  #bigmap { width: min(100%, 520px); aspect-ratio: 1; border-radius: 8px; border: 2px solid #5a3a22; flex: 1 1 320px; max-width: min(520px, calc(100vh - 140px)); }
+  #panel .warps { flex: 1 1 180px; display: flex; flex-direction: column; gap: 6px; }
+  #panel .warps h3 { margin-top: 0; }
+  .warp { text-align: left; background: #2a4a6a; }
+
+  #fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 0.45s; z-index: 45; }
+  #fade.on { opacity: 1; }
+  #hurt { position: fixed; inset: 0; pointer-events: none; box-shadow: inset 0 0 120px rgba(220,30,20,0.8); opacity: 0; }
+  #hurt.on { animation: hurt 0.5s ease; }
+  @keyframes hurt { 0% { opacity: 1; } 100% { opacity: 0; } }
+  #dead { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(40,0,0,0.5); color: #fff; font-size: 28px; font-weight: 900; letter-spacing: 0.2em; z-index: 44; text-shadow: 0 2px 10px #000; }
+  #dead.show { display: flex; }
+  #chapter { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(10,10,20,0.75); color: #fff8e6;
+    opacity: 0; pointer-events: none; transition: opacity 1.2s; z-index: 46; text-align: center; padding: 16px; }
+  #chapter.show { opacity: 1; }
+  #chapter .c1 { font-size: 16px; letter-spacing: 0.4em; opacity: 0.8; }
+  #chapter .c2 { font-size: clamp(26px, 6vw, 44px); font-weight: 900; margin: 10px 0; }
+  #chapter .c3 { font-size: 14px; opacity: 0.8; }
+
+  /* タッチ操作 */
+  #joy { position: fixed; width: 110px; height: 110px; margin: -55px 0 0 -55px; border-radius: 50%;
+    background: rgba(250,246,236,0.25); border: 2px solid rgba(250,246,236,0.7); display: none; pointer-events: none; }
+  #joyKnob { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: rgba(250,246,236,0.9); }
+
+  @media (max-width: 700px), (max-height: 500px) {
+    #hud { width: 170px; padding: 6px 9px; font-size: 11px; }
+    #place { font-size: 13px; }
+    #quest { width: 170px; top: calc(128px + env(safe-area-inset-top, 0px)); font-size: 11px; padding: 6px 9px; }
+    #minimap { width: 104px; height: 104px; }
+    .topbtns button { padding: 5px 9px; font-size: 11px; }
+    #target { top: auto; bottom: calc(210px + env(safe-area-inset-bottom, 0px)); width: 60vw; font-size: 11px; }
+    .elbtn { width: 44px; height: 44px; font-size: 15px; }
+    #castBtn { width: 82px; height: 82px; }
+    #focusBtn { bottom: calc(176px + env(safe-area-inset-bottom, 0px)); width: 48px; height: 48px; }
+    #talkBtn { bottom: calc(236px + env(safe-area-inset-bottom, 0px)); }
+    #dialog .text { font-size: 14px; }
+    #toasts { top: auto; bottom: calc(260px + env(safe-area-inset-bottom, 0px)); }
+  }
+  @media (max-height: 500px) {
+    #quest { top: calc(8px + env(safe-area-inset-top, 0px)); left: auto; right: calc(124px + env(safe-area-inset-right, 0px)); width: 190px; }
+    #target { bottom: auto; top: 8px; width: 34vw; }
+    #toasts { bottom: auto; top: 60px; }
+    #focusBtn { bottom: 150px; }
+    #talkBtn { right: calc(76px + env(safe-area-inset-right, 0px)); bottom: 150px; }
   }
 </style>
 </head>
 <body>
-<div id="hud">
-  <div class="place">はじまりの丘</div>
-  <div class="coords" id="coords">X 0 / Z 0 / 標高 0m</div>
+<div id="loading">
+  <div class="logo">マホウノセカイ</div>
+  <div class="sublogo">— 灯火の魔法使い —</div>
+  <div class="loadwrap"><div id="loadbar"></div></div>
+  <div id="loadmsg">読み込み中…</div>
 </div>
-<div id="help">
-  <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>移動　
-  <kbd>Shift</kbd>走る　
-  <kbd>Space</kbd>ジャンプ<br>
-  ドラッグで視点を回す　ホイールでズーム
+<div id="title">
+  <div class="logo">マホウノセカイ</div>
+  <div class="sublogo">— 灯火の魔法使い —</div>
+  <p class="story">千年前、大魔導士アルマは「虚無の王」を三つの星晶で封じた。<br>
+  その封印が揺らぎはじめた時代——はじまりの丘の焚き火のそばで、<br>記憶を失ったひとりの見習い魔法使いが目を覚ます。<br>
+  手に宿るのは、炎・氷・雷の小さな魔法だけ。けれど、その器には底がなかった。</p>
+  <div class="btns">
+    <button id="newBtn" type="button">はじめから</button>
+    <button id="continueBtn" class="sub" type="button" disabled>つづきから</button>
+  </div>
 </div>
+
+<div id="ui">
+  <div id="hud">
+    <div id="place">はじまりの丘</div>
+    <div class="row2"><span>Lv <span id="lv">1</span></span><span><span id="gold">0</span> G</span></div>
+    <div class="bar"><i id="hpbar"></i><b>HP</b><span id="hptxt"></span></div>
+    <div class="bar"><i id="mpbar"></i><b>魔力</b><span id="mptxt"></span></div>
+    <div class="xp"><div id="expbar"></div></div>
+  </div>
+  <div id="quest"><div id="qtitle"></div><div id="qobj"></div><div id="qdist"></div></div>
+  <div id="mapwrap">
+    <canvas id="minimap" width="150" height="150"></canvas>
+    <div class="topbtns"><button id="mapBtn" class="pe" type="button">地図</button><button id="menuBtn" class="pe" type="button">メニュー</button></div>
+  </div>
+  <div id="target"><div class="n"></div><div class="bar"><i></i></div><div class="w"></div></div>
+  <div id="help"><kbd>WASD</kbd>移動 <kbd>Shift</kbd>走る <kbd>Space</kbd>跳ぶ　<b>左クリック長押し</b>で魔力を込めて放つ　右ドラッグ視点<br>
+    <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd>炎・氷・雷　<kbd>Q</kbd>オートフォーカス <kbd>Tab</kbd>狙い変更　<kbd>E</kbd>話す <kbd>M</kbd>地図 <kbd>I</kbd>メニュー</div>
+  <div id="hint"></div>
+  <div id="charge"><b>0</b><div class="bar"><i></i></div>魔力を込めている…</div>
+  <div id="actions">
+    <div class="elrow">
+      <button class="elbtn pe" data-el="fire" type="button">炎<small>1</small></button>
+      <button class="elbtn pe" data-el="ice" type="button">氷<small>2</small></button>
+      <button class="elbtn pe" data-el="thunder" type="button">雷<small>3</small></button>
+    </div>
+    <button id="jumpBtn" class="pe" type="button">跳ぶ</button>
+    <button id="castBtn" class="pe" type="button"><span>炎</span>詠唱</button>
+  </div>
+  <button id="focusBtn" class="pe on" type="button">◎<br>AUTO</button>
+  <button id="talkBtn" class="pe" type="button">話す</button>
+</div>
+<div id="reticle"></div>
+<div id="labels"></div>
+<div id="toasts"></div>
+<div id="banner"><div class="t"></div><div class="s"></div></div>
+<div id="areaname"></div>
+<div id="dialog"><div class="head"><span class="who"></span><span class="role"></span></div><div class="text"></div><div class="choices"></div><div class="next">▼</div></div>
+<div id="panel"></div>
+<div id="hurt"></div>
+<div id="dead">力尽きた…</div>
+<div id="chapter"><div class="c1">第一章</div><div class="c2">「灯火の魔法使い」完</div><div class="c3">— 第二章につづく —</div></div>
+<div id="fade"></div>
 <div id="joy"><div id="joyKnob"></div></div>
-<button id="jumpBtn" type="button">跳ぶ</button>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
-/* =========================================================
-   設定（ここを変えると世界の大きさや操作感が変わる）
-   ========================================================= */
-const CONFIG = {
-  seed: 20260929,          // 地形・配置の乱数シード
-  worldSize: 400,          // 地形の一辺（m）
-  terrainSegments: 200,    // 地形の分割数
-  waterLevel: 0,           // 水面の高さ
-  plazaRadius: 18,         // スタート地点の平地の広さ
-  plazaHeight: 2.2,        // スタート地点の標高
-  spawn: { x: 0, z: 7 },   // 出現位置
-  walkSpeed: 6,
-  runSpeed: 11,
-  jumpPower: 9,
-  gravity: 25,
-  maxSlope: 1.4,           // これより急な坂は登れない（高さ/距離）
-  treeCount: 700,
-  rockCount: 220,
-  camera: { distance: 9, minDist: 4, maxDist: 22, pitch: 0.32 }
-};
-
-/* =========================================================
-   乱数・ノイズ
-   ========================================================= */
-function mulberry32(a) {
-  return function () {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-const rand = mulberry32(CONFIG.seed);
-
-function hash2(x, z) {
-  let h = Math.imul(x, 374761393) ^ Math.imul(z, 668265263) ^ CONFIG.seed;
-  h = Math.imul(h ^ (h >>> 13), 1274126177);
-  h ^= h >>> 16;
-  return (h >>> 0) / 4294967295;
-}
-function vnoise(x, z) {
-  const xi = Math.floor(x), zi = Math.floor(z);
-  const xf = x - xi, zf = z - zi;
-  const u = xf * xf * (3 - 2 * xf), v = zf * zf * (3 - 2 * zf);
-  const a = hash2(xi, zi), b = hash2(xi + 1, zi);
-  const c = hash2(xi, zi + 1), d = hash2(xi + 1, zi + 1);
-  return ((a + (b - a) * u) + ((c + (d - c) * u) - (a + (b - a) * u)) * v) * 2 - 1;
-}
-function fbm(x, z, oct = 5) {
-  let s = 0, amp = 1, f = 1, n = 0;
-  for (let i = 0; i < oct; i++) {
-    s += vnoise(x * f, z * f) * amp;
-    n += amp; amp *= 0.5; f *= 2.03;
-  }
-  return s / n;
-}
-const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-const lerp = (a, b, t) => a + (b - a) * t;
-const smooth = (e0, e1, x) => { const t = clamp((x - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t); };
-function angleLerp(a, b, t) {
-  let d = ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
-  return a + d * t;
-}
-
-/* =========================================================
-   地形の高さ（生成用の関数）
-   ========================================================= */
-function heightAt(x, z) {
-  const d = Math.hypot(x, z);
-  let h = fbm(x * 0.012, z * 0.012, 4) * 7 + 3;                 // なだらかな起伏
-  const m = Math.max(0, fbm(x * 0.0055 + 40, z * 0.0055 - 70, 5) + 0.1);
-  h += m * m * 110;                                              // 山
-  h += fbm(x * 0.04, z * 0.04, 3) * 1.2;                         // 細かい凹凸
-  h = lerp(CONFIG.plazaHeight, h, smooth(CONFIG.plazaRadius * 0.7, CONFIG.plazaRadius * 2.2, d)); // 出発地点を平らに
-  const edge = CONFIG.worldSize * 0.5;
-  h -= smooth(edge * 0.72, edge * 0.98, d) * 40;                 // 外周は海へ
-  return h;
-}
-function slopeAt(x, z) {
-  const gx = heightAt(x + 1, z) - heightAt(x - 1, z);
-  const gz = heightAt(x, z + 1) - heightAt(x, z - 1);
-  return Math.hypot(gx, gz) / 2;
-}
-
-/* =========================================================
-   レンダラー・シーン
-   ========================================================= */
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-document.body.prepend(renderer.domElement);
-
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1500);
-
-const SKY = {
-  top: new THREE.Color(0x5b8ec6),
-  horizon: new THREE.Color(0xeadcbf),
-  bottom: new THREE.Color(0xb7ccd6)
-};
-const sunDir = new THREE.Vector3(0.6, 0.55, -0.55).normalize();
-scene.fog = new THREE.Fog(SKY.horizon, 90, 380);
-
-// 空（グラデーション＋太陽のにじみ）
-const sky = new THREE.Mesh(
-  new THREE.SphereGeometry(600, 32, 16),
-  new THREE.ShaderMaterial({
-    side: THREE.BackSide, depthWrite: false, fog: false,
-    uniforms: {
-      top: { value: SKY.top }, horizon: { value: SKY.horizon },
-      bottom: { value: SKY.bottom }, sunDir: { value: sunDir }
-    },
-    vertexShader: `
-      varying vec3 vDir;
-      void main() {
-        vDir = normalize(position);
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }`,
-    fragmentShader: `
-      uniform vec3 top; uniform vec3 horizon; uniform vec3 bottom; uniform vec3 sunDir;
-      varying vec3 vDir;
-      void main() {
-        float h = vDir.y;
-        vec3 col = h > 0.0 ? mix(horizon, top, pow(h, 0.55)) : mix(horizon, bottom, min(1.0, -h * 4.0));
-        float s = max(dot(normalize(vDir), sunDir), 0.0);
-        col += vec3(1.0, 0.86, 0.62) * (pow(s, 90.0) * 0.9 + pow(s, 6.0) * 0.18);
-        gl_FragColor = vec4(col, 1.0);
-      }`
-  })
-);
-scene.add(sky);
-
-// 光
-scene.add(new THREE.HemisphereLight(0xd3e4ef, 0x6b5a3a, 0.62));
-const sun = new THREE.DirectionalLight(0xfff0d6, 1.05);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-Object.assign(sun.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, near: 1, far: 260 });
-sun.shadow.bias = -0.0005;
-sun.shadow.normalBias = 0.03;
-scene.add(sun, sun.target);
-
-/* =========================================================
-   地形メッシュ
-   ========================================================= */
-const N = CONFIG.terrainSegments, S = CONFIG.worldSize, CELL = S / N, HALF = S / 2;
-const heights = new Float32Array((N + 1) * (N + 1));
-
-function terrainColor(y, slope, x, z, c) {
-  const v = fbm(x * 0.05 + 11, z * 0.05 - 7, 2);
-  if (y < CONFIG.waterLevel - 0.3) return c.setHex(0xa8976b);
-  if (y < CONFIG.waterLevel + 1.0) return c.setHex(0xd9c79a);
-  if (y > 44 + v * 5) return c.setHex(0xf2f1ec);
-  if (slope > 0.95 || y > 30 + v * 4) return c.setHex(0x8a8378).lerp(new THREE.Color(0x6f6a62), clamp(v + 0.5, 0, 1));
-  const lush = new THREE.Color(0x6e9a48), dry = new THREE.Color(0x9bb35c), high = new THREE.Color(0x587c42);
-  c.copy(lush).lerp(dry, clamp(v * 1.4 + 0.5, 0, 1));
-  return c.lerp(high, smooth(12, 28, y));
-}
-
-const terrain = (() => {
-  const geo = new THREE.PlaneGeometry(S, S, N, N);
-  geo.rotateX(-Math.PI / 2);
-  const pos = geo.attributes.position;
-  const colors = new Float32Array(pos.count * 3);
-  const c = new THREE.Color();
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i), z = pos.getZ(i);
-    const y = heightAt(x, z);
-    heights[i] = y;
-    pos.setY(i, y);
-    terrainColor(y, slopeAt(x, z), x, z, c);
-    colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
-  }
-  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  geo.computeVertexNormals();
-  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
-    vertexColors: true, roughness: 1, metalness: 0, flatShading: true
-  }));
-  mesh.receiveShadow = true;
-  scene.add(mesh);
-  return mesh;
-})();
-
-// 地形メッシュと完全に一致する高さ（キャラの接地用）
-function terrainHeight(x, z) {
-  const gx = clamp((x + HALF) / CELL, 0, N - 1e-4);
-  const gz = clamp((z + HALF) / CELL, 0, N - 1e-4);
-  const ix = Math.floor(gx), iz = Math.floor(gz);
-  const fx = gx - ix, fz = gz - iz;
-  const W = N + 1;
-  const ha = heights[ix + W * iz], hb = heights[ix + W * (iz + 1)];
-  const hc = heights[ix + 1 + W * (iz + 1)], hd = heights[ix + 1 + W * iz];
-  if (fx + fz <= 1) return ha + (hd - ha) * fx + (hb - ha) * fz;
-  return hc + (hb - hc) * (1 - fx) + (hd - hc) * (1 - fz);
-}
-
-// 水
-const water = new THREE.Mesh(
-  new THREE.PlaneGeometry(1400, 1400),
-  new THREE.MeshStandardMaterial({ color: 0x3f86a8, transparent: true, opacity: 0.82, roughness: 0.15, metalness: 0.2 })
-);
-water.rotation.x = -Math.PI / 2;
-water.position.y = CONFIG.waterLevel;
-scene.add(water);
-
-/* =========================================================
-   当たり判定（木・岩・石柱など円柱で近似）
-   ========================================================= */
-const COLL_CELL = 8;
-const colliders = new Map();
-function addCollider(x, z, r) {
-  const key = Math.floor(x / COLL_CELL) + ',' + Math.floor(z / COLL_CELL);
-  if (!colliders.has(key)) colliders.set(key, []);
-  colliders.get(key).push({ x, z, r });
-}
-function resolveCollisions(p, radius) {
-  const cx = Math.floor(p.x / COLL_CELL), cz = Math.floor(p.z / COLL_CELL);
-  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
-    const list = colliders.get((cx + i) + ',' + (cz + j));
-    if (!list) continue;
-    for (const o of list) {
-      const dx = p.x - o.x, dz = p.z - o.z;
-      const d = Math.hypot(dx, dz), min = o.r + radius;
-      if (d < min && d > 1e-5) { p.x = o.x + dx / d * min; p.z = o.z + dz / d * min; }
-    }
-  }
-}
-
-/* =========================================================
-   スタート地点（石の広場・石柱・焚き火）
-   ========================================================= */
-const PLAZA_R = 9, PLAZA_TOP = CONFIG.plazaHeight + 0.05;
-const stoneMat = new THREE.MeshStandardMaterial({ color: 0xb5ab98, roughness: 0.95, flatShading: true });
-
-const plaza = new THREE.Mesh(new THREE.CylinderGeometry(PLAZA_R, PLAZA_R + 0.3, 0.3, 28), stoneMat);
-plaza.position.y = PLAZA_TOP - 0.15;
-plaza.receiveShadow = true;
-scene.add(plaza);
-
-// 地面の高さ（広場の上も含む）
-function groundAt(x, z) {
-  const t = terrainHeight(x, z);
-  return Math.hypot(x, z) < PLAZA_R ? Math.max(t, PLAZA_TOP) : t;
-}
-
-for (let i = 0; i < 7; i++) {
-  const a = (i / 7) * Math.PI * 2 + 0.3;
-  const r = 13;
-  const x = Math.cos(a) * r, z = Math.sin(a) * r;
-  const h = 2.8 + rand() * 1.8;
-  const stone = new THREE.Mesh(new THREE.BoxGeometry(1.1, h, 0.8), stoneMat);
-  stone.position.set(x, terrainHeight(x, z) + h / 2 - 0.3, z);
-  stone.rotation.set((rand() - 0.5) * 0.12, -a + Math.PI / 2, (rand() - 0.5) * 0.12);
-  stone.castShadow = stone.receiveShadow = true;
-  scene.add(stone);
-  addCollider(x, z, 0.8);
-}
-
-const campfire = new THREE.Group();
-campfire.position.set(0, PLAZA_TOP, 0);
-for (let i = 0; i < 9; i++) {
-  const a = (i / 9) * Math.PI * 2;
-  const s = new THREE.Mesh(new THREE.DodecahedronGeometry(0.22, 0), stoneMat);
-  s.position.set(Math.cos(a) * 0.85, 0.1, Math.sin(a) * 0.85);
-  s.castShadow = true;
-  campfire.add(s);
-}
-const logMat = new THREE.MeshStandardMaterial({ color: 0x5a3b24, roughness: 1, flatShading: true });
-for (let i = 0; i < 3; i++) {
-  const log = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 1.2, 6), logMat);
-  log.rotation.set(Math.PI / 2 - 0.35, (i / 3) * Math.PI * 2, 0);
-  log.position.y = 0.2;
-  campfire.add(log);
-}
-const flameOuter = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1.1, 7), new THREE.MeshBasicMaterial({ color: 0xff8a2a }));
-const flameInner = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.7, 7), new THREE.MeshBasicMaterial({ color: 0xffe79a }));
-flameOuter.position.y = 0.65; flameInner.position.y = 0.5;
-campfire.add(flameOuter, flameInner);
-const fireLight = new THREE.PointLight(0xffa04a, 1.8, 16, 2);
-fireLight.position.y = 1.2;
-campfire.add(fireLight);
-scene.add(campfire);
-addCollider(0, 0, 1.0);
-
-/* =========================================================
-   木と岩（InstancedMeshで軽量に）
-   ========================================================= */
-(function placeNature() {
-  const white = () => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, flatShading: true });
-  const trunkMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.18, 0.26, 1, 6), white(), CONFIG.treeCount);
-  const pineMesh = new THREE.InstancedMesh(new THREE.ConeGeometry(1, 1, 7), white(), CONFIG.treeCount);
-  const roundMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), white(), CONFIG.treeCount);
-  const rockMesh = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), white(), CONFIG.rockCount);
-
-  const dummy = new THREE.Object3D();
-  const c = new THREE.Color();
-  let nTrunk = 0, nPine = 0, nRound = 0, nRock = 0, tries = 0;
-
-  while (nTrunk < CONFIG.treeCount && tries++ < 20000) {
-    const x = (rand() - 0.5) * S * 0.9, z = (rand() - 0.5) * S * 0.9;
-    const h = terrainHeight(x, z);
-    if (h < CONFIG.waterLevel + 1.5 || h > 34) continue;
-    if (Math.hypot(x, z) < CONFIG.plazaRadius + 4) continue;
-    if (slopeAt(x, z) > 0.8) continue;
-    const forest = fbm(x * 0.02 + 300, z * 0.02, 3);
-    if (forest < -0.05 && rand() > 0.08) continue;
-
-    const s = 0.7 + rand() * 0.8;
-    const isPine = h > 14 ? rand() < 0.85 : rand() < 0.4;
-    const trunkH = (isPine ? 1.6 : 2.2) * s;
-
-    dummy.position.set(x, h + trunkH / 2 - 0.1, z);
-    dummy.rotation.set(0, rand() * Math.PI, 0);
-    dummy.scale.set(s, trunkH, s);
-    dummy.updateMatrix();
-    trunkMesh.setMatrixAt(nTrunk, dummy.matrix);
-    trunkMesh.setColorAt(nTrunk, c.setHex(0x5d4028));
-    nTrunk++;
-
-    if (isPine) {
-      const ch = 5 * s;
-      dummy.position.set(x, h + trunkH + ch / 2 - 0.4, z);
-      dummy.scale.set(1.8 * s, ch, 1.8 * s);
-      dummy.updateMatrix();
-      pineMesh.setMatrixAt(nPine, dummy.matrix);
-      pineMesh.setColorAt(nPine, c.setHex(0x2f5a3a).offsetHSL((rand() - 0.5) * 0.04, 0, (rand() - 0.5) * 0.08));
-      nPine++;
-    } else {
-      const r = 1.9 * s;
-      dummy.position.set(x, h + trunkH + r * 0.6, z);
-      dummy.scale.set(r, r * 0.9, r);
-      dummy.updateMatrix();
-      roundMesh.setMatrixAt(nRound, dummy.matrix);
-      roundMesh.setColorAt(nRound, c.setHex(0x6a9a3f).offsetHSL((rand() - 0.5) * 0.06, 0, (rand() - 0.5) * 0.1));
-      nRound++;
-    }
-    addCollider(x, z, 0.35 * s);
-  }
-
-  tries = 0;
-  while (nRock < CONFIG.rockCount && tries++ < 8000) {
-    const x = (rand() - 0.5) * S * 0.9, z = (rand() - 0.5) * S * 0.9;
-    const h = terrainHeight(x, z);
-    if (h < CONFIG.waterLevel - 2 || Math.hypot(x, z) < PLAZA_R + 2) continue;
-    const s = 0.4 + Math.pow(rand(), 3) * 2.6;
-    dummy.position.set(x, h + s * 0.25, z);
-    dummy.rotation.set(rand() * 3, rand() * 3, rand() * 3);
-    dummy.scale.set(s * (0.8 + rand() * 0.5), s * (0.6 + rand() * 0.4), s * (0.8 + rand() * 0.5));
-    dummy.updateMatrix();
-    rockMesh.setMatrixAt(nRock, dummy.matrix);
-    rockMesh.setColorAt(nRock, c.setHex(0x8d877c).offsetHSL(0, 0, (rand() - 0.5) * 0.12));
-    nRock++;
-    if (s > 0.8) addCollider(x, z, s * 0.8);
-  }
-
-  for (const [m, n] of [[trunkMesh, nTrunk], [pineMesh, nPine], [roundMesh, nRound], [rockMesh, nRock]]) {
-    m.count = n;
-    m.castShadow = m.receiveShadow = true;
-    m.instanceMatrix.needsUpdate = true;
-    if (m.instanceColor) m.instanceColor.needsUpdate = true;
-    scene.add(m);
-  }
-})();
-
-/* =========================================================
-   キャラクター
-   ========================================================= */
-class Player {
-  constructor() {
-    const mat = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.8, flatShading: true });
-    const box = (w, h, d, m) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.castShadow = true; return o; };
-
-    this.root = new THREE.Group();
-    this.model = new THREE.Group();   // 正面は +Z
-    this.root.add(this.model);
-
-    const cloth = mat(0x2f3e6b), pants = mat(0x3b3228), skin = mat(0xf0c9a0);
-    const hair = mat(0x2a1f1a), scarfM = mat(0xc8552f), bag = mat(0x7a5634);
-
-    const torso = box(0.8, 0.9, 0.45, cloth); torso.position.y = 1.25;
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 10), skin);
-    head.position.y = 1.98; head.castShadow = true;
-    const hairCap = new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), hair);
-    hairCap.position.set(0, 2.02, -0.03); hairCap.castShadow = true;
-    const eyeM = mat(0x1a1a1a);
-    const eyeL = box(0.06, 0.08, 0.02, eyeM); eyeL.position.set(-0.11, 2.0, 0.3);
-    const eyeR = eyeL.clone(); eyeR.position.x = 0.11;
-
-    const scarf = box(0.62, 0.16, 0.52, scarfM); scarf.position.y = 1.68;
-    this.scarfTail = new THREE.Group(); this.scarfTail.position.set(0.18, 1.68, -0.26);
-    const tail = box(0.14, 0.6, 0.06, scarfM); tail.position.y = -0.3;
-    this.scarfTail.add(tail);
-
-    const pack = box(0.55, 0.6, 0.25, bag); pack.position.set(0, 1.3, -0.34);
-
-    const limb = (x, y, w, h, m) => {
-      const pivot = new THREE.Group(); pivot.position.set(x, y, 0);
-      const mesh = box(w, h, w, m); mesh.position.y = -h / 2;
-      pivot.add(mesh); return pivot;
-    };
-    this.armL = limb(-0.52, 1.62, 0.22, 0.78, cloth);
-    this.armR = limb(0.52, 1.62, 0.22, 0.78, cloth);
-    this.legL = limb(-0.2, 0.82, 0.28, 0.82, pants);
-    this.legR = limb(0.2, 0.82, 0.28, 0.82, pants);
-
-    this.model.add(torso, head, hairCap, eyeL, eyeR, scarf, this.scarfTail, pack,
-                   this.armL, this.armR, this.legL, this.legR);
-    scene.add(this.root);
-
-    this.pos = new THREE.Vector3(CONFIG.spawn.x, 0, CONFIG.spawn.z);
-    this.pos.y = groundAt(this.pos.x, this.pos.z);
-    this.vel = new THREE.Vector3();
-    this.vy = 0;
-    this.onGround = true;
-    this.inWater = false;
-    this.facing = Math.PI;   // 焚き火の方を向いて出現
-    this.phase = 0;
-    this.radius = 0.45;
-  }
-
-  floorAt(x, z) {
-    return Math.max(groundAt(x, z), CONFIG.waterLevel - 1.05);  // 深い水では泳ぐ
-  }
-
-  canStep(fromX, fromZ, toX, toZ) {
-    const d = Math.hypot(toX - fromX, toZ - fromZ);
-    if (d < 1e-5) return true;
-    return (groundAt(toX, toZ) - groundAt(fromX, fromZ)) / d <= CONFIG.maxSlope;
-  }
-
-  update(dt, input, camYaw, time) {
-    // カメラ基準の移動方向
-    const fx = -Math.sin(camYaw), fz = -Math.cos(camYaw);
-    const rx = Math.cos(camYaw), rz = -Math.sin(camYaw);
-    let mx = fx * input.y + rx * input.x, mz = fz * input.y + rz * input.x;
-    const len = Math.hypot(mx, mz);
-    if (len > 1) { mx /= len; mz /= len; }
-
-    this.inWater = groundAt(this.pos.x, this.pos.z) < CONFIG.waterLevel - 1.0;
-    const speed = (input.run ? CONFIG.runSpeed : CONFIG.walkSpeed) * (this.inWater ? 0.55 : 1);
-    const k = 1 - Math.exp(-(this.onGround ? 12 : 3) * dt);
-    this.vel.x = lerp(this.vel.x, mx * speed, k);
-    this.vel.z = lerp(this.vel.z, mz * speed, k);
-
-    // 水平移動（急斜面は登れない／軸ごとに滑らせる）
-    const p = this.pos;
-    const nx = p.x + this.vel.x * dt, nz = p.z + this.vel.z * dt;
-    const checkSlope = this.onGround && !this.inWater;
-    if (!checkSlope || this.canStep(p.x, p.z, nx, nz)) { p.x = nx; p.z = nz; }
-    else if (this.canStep(p.x, p.z, nx, p.z)) { p.x = nx; this.vel.z = 0; }
-    else if (this.canStep(p.x, p.z, p.x, nz)) { p.z = nz; this.vel.x = 0; }
-    else { this.vel.x = this.vel.z = 0; }
-
-    resolveCollisions(p, this.radius);
-    const lim = HALF - 5;
-    p.x = clamp(p.x, -lim, lim);
-    p.z = clamp(p.z, -lim, lim);
-
-    // 縦移動
-    if (input.jump && (this.onGround || this.inWater)) { this.vy = CONFIG.jumpPower; this.onGround = false; }
-    input.jump = false;
-    this.vy -= CONFIG.gravity * dt;
-    p.y += this.vy * dt;
-    const floor = this.floorAt(p.x, p.z);
-    if (p.y <= floor || (this.onGround && this.vy <= 0 && p.y - floor < 0.45)) {
-      p.y = floor; this.vy = 0; this.onGround = true;
-    } else {
-      this.onGround = false;
-    }
-
-    // 向き
-    if (len > 0.05) this.facing = angleLerp(this.facing, Math.atan2(mx, mz), Math.min(1, 12 * dt));
-
-    // アニメーション
-    const hs = Math.hypot(this.vel.x, this.vel.z);
-    const amt = Math.min(1, hs / CONFIG.walkSpeed);
-    this.phase += hs * dt * 1.6;
-    const sw = Math.sin(this.phase) * 0.9 * amt;
-    if (this.onGround) {
-      this.legL.rotation.x = sw; this.legR.rotation.x = -sw;
-      this.armL.rotation.x = -sw * 0.8; this.armR.rotation.x = sw * 0.8;
-      this.armL.rotation.z = this.armR.rotation.z = 0;
-      this.model.position.y = Math.abs(Math.sin(this.phase)) * 0.08 * amt + Math.sin(time * 2) * 0.01;
-    } else {
-      this.legL.rotation.x = 0.5; this.legR.rotation.x = -0.25;
-      this.armL.rotation.z = -0.7; this.armR.rotation.z = 0.7;
-      this.model.position.y = 0;
-    }
-    this.scarfTail.rotation.x = -0.25 - amt * 0.9 + Math.sin(time * 9) * 0.08 * (0.3 + amt);
-
-    this.root.position.copy(p);
-    this.root.rotation.y = this.facing;
-  }
-}
-const player = new Player();
-
-/* =========================================================
-   入力（キーボード・マウス・タッチ）
-   ========================================================= */
-const input = { x: 0, y: 0, run: false, jump: false };
-const keys = new Set();
-const cam = { yaw: 0, pitch: CONFIG.camera.pitch, dist: CONFIG.camera.distance };
-
-addEventListener('keydown', (e) => {
-  if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
-  if (e.code === 'Space' && !e.repeat) input.jump = true;
-  keys.add(e.code);
-});
-addEventListener('keyup', (e) => keys.delete(e.code));
-addEventListener('blur', () => keys.clear());
-
-function readKeyboard() {
-  const k = (c) => keys.has(c);
-  const x = (k('KeyD') || k('ArrowRight') ? 1 : 0) - (k('KeyA') || k('ArrowLeft') ? 1 : 0);
-  const y = (k('KeyW') || k('ArrowUp') ? 1 : 0) - (k('KeyS') || k('ArrowDown') ? 1 : 0);
-  return { x, y, run: k('ShiftLeft') || k('ShiftRight') };
-}
-
-const canvas = renderer.domElement;
-const joyEl = document.getElementById('joy'), knobEl = document.getElementById('joyKnob');
-const joy = { id: null, cx: 0, cy: 0, x: 0, y: 0 };
-const drags = new Map();   // 視点操作中のポインター
-
-canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-canvas.addEventListener('pointerdown', (e) => {
-  canvas.setPointerCapture(e.pointerId);
-  if (e.pointerType === 'touch' && e.clientX < innerWidth * 0.45 && joy.id === null) {
-    joy.id = e.pointerId; joy.cx = e.clientX; joy.cy = e.clientY;
-    joyEl.style.left = e.clientX + 'px'; joyEl.style.top = e.clientY + 'px';
-    joyEl.style.display = 'block';
-  } else {
-    drags.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  }
-});
-canvas.addEventListener('pointermove', (e) => {
-  if (e.pointerId === joy.id) {
-    let dx = e.clientX - joy.cx, dy = e.clientY - joy.cy;
-    const d = Math.hypot(dx, dy), max = 50;
-    if (d > max) { dx = dx / d * max; dy = dy / d * max; }
-    joy.x = dx / max; joy.y = -dy / max;
-    knobEl.style.transform = `translate(${dx}px, ${dy}px)`;
-    return;
-  }
-  const d = drags.get(e.pointerId);
-  if (!d) return;
-  cam.yaw -= (e.clientX - d.x) * 0.006;
-  cam.pitch = clamp(cam.pitch + (e.clientY - d.y) * 0.004, -0.15, 1.25);
-  d.x = e.clientX; d.y = e.clientY;
-});
-const endPointer = (e) => {
-  if (e.pointerId === joy.id) {
-    joy.id = null; joy.x = joy.y = 0;
-    joyEl.style.display = 'none'; knobEl.style.transform = '';
-  }
-  drags.delete(e.pointerId);
-};
-canvas.addEventListener('pointerup', endPointer);
-canvas.addEventListener('pointercancel', endPointer);
-canvas.addEventListener('wheel', (e) => {
-  e.preventDefault();
-  cam.dist = clamp(cam.dist * (1 + e.deltaY * 0.001), CONFIG.camera.minDist, CONFIG.camera.maxDist);
-}, { passive: false });
-
-document.getElementById('jumpBtn').addEventListener('pointerdown', (e) => {
-  e.preventDefault(); e.stopPropagation(); input.jump = true;
-});
-
-/* =========================================================
-   カメラ追従
-   ========================================================= */
-const camTarget = new THREE.Vector3();
-function updateCamera(dt, snap) {
-  camTarget.set(player.pos.x, player.pos.y + 1.6, player.pos.z);
-  const cp = Math.cos(cam.pitch);
-  const want = new THREE.Vector3(
-    camTarget.x + Math.sin(cam.yaw) * cp * cam.dist,
-    camTarget.y + Math.sin(cam.pitch) * cam.dist,
-    camTarget.z + Math.cos(cam.yaw) * cp * cam.dist
-  );
-  want.y = Math.max(want.y, groundAt(want.x, want.z) + 0.6, CONFIG.waterLevel + 0.3);
-  if (snap) camera.position.copy(want);
-  else camera.position.lerp(want, 1 - Math.exp(-14 * dt));
-  camera.lookAt(camTarget);
-}
-
-/* =========================================================
-   ループ
-   ========================================================= */
-const coordsEl = document.getElementById('coords');
-const clock = new THREE.Clock();
-let hudTimer = 0;
-updateCamera(0, true);
-
-function tick() {
-  const dt = Math.min(clock.getDelta(), 0.05);
-  const t = clock.elapsedTime;
-
-  const kb = readKeyboard();
-  input.x = clamp(kb.x + joy.x, -1, 1);
-  input.y = clamp(kb.y + joy.y, -1, 1);
-  input.run = kb.run || Math.hypot(joy.x, joy.y) > 0.92;
-
-  player.update(dt, input, cam.yaw, t);
-  updateCamera(dt, false);
-
-  // 太陽の影をキャラ周辺に追従
-  sun.position.copy(player.pos).addScaledVector(sunDir, 120);
-  sun.target.position.copy(player.pos);
-  sky.position.copy(camera.position);
-
-  // 焚き火のゆらぎ
-  const fl = 1 + Math.sin(t * 13) * 0.08 + Math.sin(t * 7.3) * 0.06;
-  flameOuter.scale.set(1, fl, 1); flameInner.scale.set(1, 2 - fl, 1);
-  fireLight.intensity = 1.6 + Math.sin(t * 11) * 0.25 + Math.sin(t * 17) * 0.15;
-  water.position.y = CONFIG.waterLevel + Math.sin(t * 0.8) * 0.04;
-
-  hudTimer -= dt;
-  if (hudTimer <= 0) {
-    hudTimer = 0.2;
-    coordsEl.textContent = `X ${player.pos.x.toFixed(0)} / Z ${player.pos.z.toFixed(0)} / 標高 ${player.pos.y.toFixed(1)}m`;
-  }
-
-  renderer.render(scene, camera);
-  requestAnimationFrame(tick);
-}
-requestAnimationFrame(tick);
-
-addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-});
-
-// Claude Code などで拡張するときの入口（コンソールから触れる）
-window.game = { THREE, scene, camera, renderer, player, CONFIG, heightAt, terrainHeight, groundAt, addCollider };
-</script>
+<script src="js/core.js"></script>
+<script src="js/sound.js"></script>
+<script src="js/world.js"></script>
+<script src="js/build.js"></script>
+<script src="js/actors.js"></script>
+<script src="js/magic.js"></script>
+<script src="js/enemies.js"></script>
+<script src="js/npcs.js"></script>
+<script src="js/story.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
 </body>
 </html>
